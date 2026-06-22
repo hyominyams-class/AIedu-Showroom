@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/output/
+/.playwright-cli/
+/.codex-*.png
+/tmp/
 
 # next.js
 /.next/
@@ -32,9 +36,14 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+local.env
 
 # vercel
 .vercel
+
+# generated visual backups
+/public/visuals/_backup-thumbnails-*/
 
 # typescript
 *.tsbuildinfo

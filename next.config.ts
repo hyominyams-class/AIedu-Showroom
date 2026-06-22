@@ -1,7 +1,23 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    localPatterns: [
+      {
+        pathname: "/visuals/generated-thumbnails/**",
+      },
+      {
+        pathname: "/visuals/landing-previews/**",
+      },
+      {
+        pathname: "/visuals/**",
+        search: "",
+      },
+    ],
+  },
+  turbopack: {
+    root: process.cwd(),
+  },
 };
 
 export default nextConfig;

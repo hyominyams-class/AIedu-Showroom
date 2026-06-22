@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI EDU Showroom
 
-## Getting Started
+교사 연수에서 만들 수 있는 교육용 앱 아이디어를 난이도별로 탐색하고, 각 앱의 체험 흐름을 확인하는 Next.js 기반 쇼룸입니다.
 
-First, run the development server:
+## 실행
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+로컬 주소는 `http://localhost:3000`입니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 입장 코드
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+기본 로컬 코드는 `showroom2026`입니다.
 
-## Learn More
+배포 환경에서는 `TRAINING_ACCESS_CODE` 환경변수로 코드를 지정합니다.
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+TRAINING_ACCESS_CODE=showroom2026
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 앱 구성
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+앱 구성 기준은 [docs/app-reconfiguration-plan.md](docs/app-reconfiguration-plan.md)에 정리되어 있습니다.
+제품 요구사항은 [docs/prd-ai-education-showroom.md](docs/prd-ai-education-showroom.md)에 정리되어 있습니다.
 
-## Deploy on Vercel
+- `하`: HTML, CSS, JavaScript와 정적 데이터 중심
+- `중`: 단일 API 키 기반 이미지 생성, 챗봇, 텍스트 생성
+- `상`: 여러 API, 외부 연동, 인증, 저장소가 필요한 프로젝트형 앱
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 주요 명령
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run assets
+npm run lint
+npm run build
+```
