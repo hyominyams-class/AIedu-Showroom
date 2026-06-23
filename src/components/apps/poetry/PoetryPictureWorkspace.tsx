@@ -1,9 +1,9 @@
 "use client";
 
-import { ImageIcon, Loader2, Palette, RotateCcw, Sparkles } from "lucide-react";
+import { Check, Copy, Download, ImageIcon, Loader2, Palette, RotateCcw, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
 import { versionVisualAsset } from "@/lib/visuals";
@@ -21,37 +21,55 @@ const initialValues = {
 };
 
 const POETRY_RESULT_IMAGE = "/visuals/poetry/rain-playground-poetry-poster.png";
-const poetryFallbackLead = "비 온 뒤 운동장의 빛과 시 문장을 한 장의 시화로 담았습니다.";
-const poetryIdleLead = "시 문장과 장면 묘사가 한 장의 시화로 보입니다.";
 
 export function PoetryPictureWorkspace({ app, spec }: PoetryPictureWorkspaceProps) {
   const [values, setValues] = useState(initialValues);
-  const [imageUrl, setImageUrl] = useState("");
-  const [lead, setLead] = useState(poetryIdleLead);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(""), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
 
   function updateValue(id: keyof typeof values, value: string) {
     setValues((current) => ({ ...current, [id]: value }));
+    setSubmitted(false);
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!values.topic.trim() || !values.poem.trim()) {
+      setNotice("작품명과 시를 입력해주세요.");
+      return;
+    }
     setLoading(true);
     window.setTimeout(() => {
       setSubmitted(true);
-      setImageUrl(POETRY_RESULT_IMAGE);
-      setLead(poetryFallbackLead);
       setLoading(false);
-    }, 320);
+    }, 360);
   }
 
   function reset() {
     setValues(initialValues);
-    setImageUrl("");
-    setLead(poetryIdleLead);
     setSubmitted(false);
   }
+
+  async function copyPoem() {
+    const text = `${values.topic}\n글 · ${values.author}\n\n${values.poem}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setNotice("시를 복사했어요.");
+    } catch {
+      setNotice("복사를 지원하지 않는 환경이에요.");
+    }
+  }
+
+  const title = values.topic.trim() || "제목 없는 시";
+  const author = values.author.trim() || "이름 모를 시인";
+  const poemLines = values.poem.split("\n");
 
   return (
     <main className="mvp-page app-special-page poetry-page">
@@ -60,8 +78,8 @@ export function PoetryPictureWorkspace({ app, spec }: PoetryPictureWorkspaceProp
           <div className="mvp-hero-title-row">
             <h1>{app.title}</h1>
             <span className="mvp-surface-icon">
-              <ImageIcon size={17} />
-              시화 미리보기
+              <Palette size={17} />
+              시화 만들기
             </span>
             <p>{app.category} · {spec.workLabel}</p>
           </div>
@@ -90,7 +108,7 @@ export function PoetryPictureWorkspace({ app, spec }: PoetryPictureWorkspaceProp
           </label>
           <label className="mvp-field">
             <span>시</span>
-            <textarea value={values.poem} onChange={(event) => updateValue("poem", event.target.value)} />
+            <textarea rows={6} value={values.poem} onChange={(event) => updateValue("poem", event.target.value)} />
           </label>
           <label className="mvp-field">
             <span>장면 묘사</span>
@@ -99,7 +117,7 @@ export function PoetryPictureWorkspace({ app, spec }: PoetryPictureWorkspaceProp
           <div className="mvp-action-row">
             <button className="button-primary" disabled={loading} type="submit">
               {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-              {loading ? "시화 생성 중" : "시화 생성하기"}
+              {loading ? "시화 만드는 중" : "시화 만들기"}
             </button>
             <button className="button-secondary" type="button" onClick={reset}>
               <RotateCcw size={18} />
@@ -108,25 +126,73 @@ export function PoetryPictureWorkspace({ app, spec }: PoetryPictureWorkspaceProp
           </div>
         </section>
 
-        <section className="poetry-preview-panel" aria-label="시화 미리보기">
-          <div className="poetry-image-frame">
-            {submitted && imageUrl ? (
-              <Image src={versionVisualAsset(imageUrl)} alt={`${values.topic} 시화`} fill loading="eager" sizes="(min-width: 960px) 58vw, 100vw" className="object-contain" unoptimized />
-            ) : (
-              <div className="mvp-image-placeholder">
-                <ImageIcon size={30} />
-                <span>{loading ? "시화 생성 중" : "시화 미리보기"}</span>
-                <p>{values.author} · {values.topic}</p>
+        <section className="poetry-preview-panel" aria-label="시화">
+          <article className={`poetry-canvas ${submitted ? "is-final" : "is-draft"}`}>
+            <div className="poetry-art-frame">
+              {submitted ? (
+                <Image
+                  src={versionVisualAsset(POETRY_RESULT_IMAGE)}
+                  alt={`${title} 시화 그림`}
+                  fill
+                  loading="eager"
+                  sizes="(min-width: 960px) 40vw, 100vw"
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="poetry-art-empty">
+                  <ImageIcon size={26} />
+                  <span>시화 그림</span>
+                  <p>시화 만들기를 누르면 입력한 시와 함께 그림이 채워져요.</p>
+                </div>
+              )}
+              {loading ? (
+                <div className="poetry-art-loading">
+                  <Loader2 className="animate-spin" size={22} />
+                  <span>시의 장면을 그리는 중</span>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="poetry-poem-card">
+              <span className="poetry-poem-kicker">{submitted ? "완성된 시화" : "미리보기"}</span>
+              <h2 className="poetry-poem-title">{title}</h2>
+              <p className="poetry-poem-author">글 · {author}</p>
+              <div className="poetry-poem-body">
+                {poemLines.map((line, index) => (
+                  <p key={index}>{line.trim() ? line : " "}</p>
+                ))}
               </div>
+              {values.notes.trim() ? <p className="poetry-poem-scene">{values.notes}</p> : null}
+            </div>
+          </article>
+
+          <div className="poetry-result-bar">
+            {submitted ? (
+              <>
+                <button className="button-secondary" type="button" onClick={copyPoem}>
+                  <Copy size={17} />
+                  시 복사
+                </button>
+                <a className="button-secondary" href={versionVisualAsset(POETRY_RESULT_IMAGE)} download={`${title}-시화.png`}>
+                  <Download size={17} />
+                  그림 저장
+                </a>
+                <span className="poetry-result-tag">쇼룸에서는 준비된 그림 스타일로 보여 드려요.</span>
+              </>
+            ) : (
+              <span className="poetry-result-tag">입력한 시가 오른쪽에 시화로 함께 나타나요.</span>
             )}
-          </div>
-          <div className="poetry-result-note">
-            <ImageIcon size={18} />
-            <p>{lead}</p>
-            <span>{!submitted ? "미리보기" : "결과 이미지"}</span>
           </div>
         </section>
       </form>
+
+      {notice ? (
+        <div className="toast" role="status">
+          <Check size={16} />
+          {notice}
+        </div>
+      ) : null}
     </main>
   );
 }

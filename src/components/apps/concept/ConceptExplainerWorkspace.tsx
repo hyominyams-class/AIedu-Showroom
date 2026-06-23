@@ -108,19 +108,22 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
       if (data?.ok) {
         const isLive = data.source === "live";
         const answerBlocks = normalizeAnswerBlocks(data.answerBlocks, fallback.answerBlocks);
-        const hasAnswer = Boolean(data.title || data.lead || answerBlocks.length);
+        // Treat the answer as live only when the model's blocks survived validation;
+        // otherwise fall back title/lead too, so the heading never mismatches the body.
+        const blocksAreLive = answerBlocks.length > 0 && answerBlocks !== fallback.answerBlocks;
+        const live = isLive && blocksAreLive;
         setBoard({
           ...fallback,
-          answerMeta: hasAnswer && data.answerMeta ? normalizeAnswerMeta(data.answerMeta, fallback.answerMeta) : fallback.answerMeta,
-          title: hasAnswer && data.title ? data.title : fallback.title,
-          lead: hasAnswer && data.lead ? data.lead : fallback.lead,
-          cards: hasAnswer && Array.isArray(data.cards) && data.cards.length ? data.cards.slice(0, 4) : fallback.cards,
-          answerBlocks: answerBlocks.length ? answerBlocks : fallback.answerBlocks,
-          notes: hasAnswer && Array.isArray(data.notes) && data.notes.length ? data.notes : fallback.notes,
-          source: isLive ? "live" : "fallback",
+          answerMeta: live && data.answerMeta ? normalizeAnswerMeta(data.answerMeta, fallback.answerMeta) : fallback.answerMeta,
+          title: live && data.title ? data.title : fallback.title,
+          lead: live && data.lead ? data.lead : fallback.lead,
+          cards: live && Array.isArray(data.cards) && data.cards.length ? data.cards.slice(0, 4) : fallback.cards,
+          answerBlocks: blocksAreLive ? answerBlocks : fallback.answerBlocks,
+          notes: live && Array.isArray(data.notes) && data.notes.length ? data.notes : fallback.notes,
+          source: live ? "live" : "fallback",
           updatedAt: new Date().toISOString(),
         });
-        setSource(isLive ? "live" : "fallback");
+        setSource(live ? "live" : "fallback");
       } else {
         setBoard(fallback);
         setSource("fallback");
@@ -140,9 +143,13 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
       ...(board.answerBlocks ?? []).map(stringifyAnswerBlock),
       ...(board.answerBlocks?.length ? [] : board.cards.map((card, index) => `${index + 1}. ${card.title}: ${card.body}`)),
     ].join("\n");
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      setCopied(false);
+    }
   }
 
   function reset() {
@@ -221,8 +228,16 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
             </select>
           </label>
           <div className="concept-readiness">
-            <span>{source === "live" ? "AI 답변" : source === "fallback" ? "예시 답변" : "질문 준비"}</span>
-            <strong>{completion}%</strong>
+            {source === "local" ? (
+              <>
+                <span>질문 준비</span>
+                <strong>{completion}%</strong>
+              </>
+            ) : (
+              <span className={`concept-source-badge is-${source}`}>
+                {source === "live" ? "AI 답변" : "예시 답변"}
+              </span>
+            )}
           </div>
           <div className="mvp-action-row">
             <button className="button-primary" disabled={loading} type="submit">
@@ -237,7 +252,16 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
         </form>
 
         <section className="concept-board-panel concept-answer-panel" aria-label="쉬운 설명 답변">
-          <article className="concept-main-card concept-answer-card">
+          {source === "fallback" ? (
+            <p className="concept-source-note">AI 답변을 불러오지 못해 준비된 예시 설명을 보여드려요.</p>
+          ) : null}
+          <article className={`concept-main-card concept-answer-card ${loading ? "is-loading" : ""}`}>
+            {loading ? (
+              <div className="concept-answer-loading" aria-live="polite">
+                <Loader2 className="animate-spin" size={22} />
+                <span>쉬운 설명을 쓰는 중…</span>
+              </div>
+            ) : null}
             <span>{values.level} · {values.length}</span>
             <h2>{board.title}</h2>
             <MarkdownText className="concept-markdown-text concept-lead-text" text={board.lead} />

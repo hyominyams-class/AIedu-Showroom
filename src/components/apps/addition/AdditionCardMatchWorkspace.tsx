@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Calculator, Check, RotateCcw, Shuffle, Trophy } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Check, Plus, RotateCcw, Shuffle, Sparkles, Star, Timer, Trophy } from "lucide-react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
 
@@ -28,6 +28,7 @@ type GameCard = {
 };
 
 type GameMode = "ready" | "preview" | "playing" | "checking" | "complete";
+type Feedback = "match" | "wrong" | null;
 
 const additionPairs: Pair[] = [
   { id: "p1", expression: "1 + 2", answer: "3" },
@@ -41,6 +42,8 @@ const additionPairs: Pair[] = [
 ];
 
 const previewMs = 5200;
+const totalPairs = additionPairs.length;
+const perfectTurns = totalPairs + 2;
 
 export function AdditionCardMatchWorkspace({ app, spec }: AdditionCardMatchWorkspaceProps) {
   const [cards, setCards] = useState<GameCard[]>(() => createCards());
@@ -50,11 +53,18 @@ export function AdditionCardMatchWorkspace({ app, spec }: AdditionCardMatchWorks
   const [matchedPairs, setMatchedPairs] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [previewLeft, setPreviewLeft] = useState(Math.ceil(previewMs / 1000));
-  const [message, setMessage] = useState("시작하면 모든 카드가 잠시 열립니다.");
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [message, setMessage] = useState("식 카드와 정답 카드의 짝을 찾는 놀이예요.");
   const checkTimer = useRef<number | null>(null);
   const previewTimer = useRef<number | null>(null);
+  const pendingCheckIds = useRef<string[] | null>(null);
+  const pendingTurnCount = useRef<number | null>(null);
 
-  const score = matchedPairs * 100 + Math.max(0, matchedPairs * 20 - turns * 5);
+  const score = matchedPairs * 100;
+  const complete = mode === "complete";
+  const stars = complete ? (turns <= perfectTurns ? 3 : turns <= perfectTurns + 3 ? 2 : 1) : 0;
+  const completionSummary = `${formatElapsed(elapsedSeconds)} · ${turns}번 시도 · ${score}점`;
+  const canShuffle = mode === "ready" || mode === "complete";
   const selectedCards = useMemo(
     () => selectedIds.map((id) => cards.find((card) => card.id === id)).filter(Boolean) as GameCard[],
     [cards, selectedIds],
@@ -70,19 +80,26 @@ export function AdditionCardMatchWorkspace({ app, spec }: AdditionCardMatchWorks
 
     if (first.pairId === second.pairId && first.kind !== second.kind) {
       const nextMatched = matchedPairs + 1;
+      const checkedTurns = pendingTurnCount.current ?? turns;
       setCards((current) => current.map((card) => card.pairId === first.pairId ? { ...card, matched: true } : card));
       setMatchedPairs(nextMatched);
-      setMessage(`${getPairExpression(first.pairId)} = ${getPairAnswer(first.pairId)}`);
+      setFeedback("match");
+      setMessage(`${getPairExpression(first.pairId)} = ${getPairAnswer(first.pairId)} 짝 완성!`);
       setSelectedIds([]);
-      setMode(nextMatched === additionPairs.length ? "complete" : "playing");
-      if (nextMatched === additionPairs.length) {
-        setMessage(`완료! ${turns + 1}번 만에 모든 짝을 찾았어요.`);
+      pendingCheckIds.current = null;
+      pendingTurnCount.current = null;
+      setMode(nextMatched === totalPairs ? "complete" : "playing");
+      if (nextMatched === totalPairs) {
+        setMessage(`${checkedTurns}번 만에 모든 덧셈 짝을 맞혔어요!`);
       }
       return;
     }
 
-    setMessage("다른 짝이에요. 다시 골라보세요.");
+    setFeedback("wrong");
+    setMessage("짝이 아니에요. 위치를 기억해 다시 골라요.");
     setSelectedIds([]);
+    pendingCheckIds.current = null;
+    pendingTurnCount.current = null;
     setMode("playing");
   }, [cards, matchedPairs, selectedIds, turns]);
 
@@ -98,11 +115,18 @@ export function AdditionCardMatchWorkspace({ app, spec }: AdditionCardMatchWorks
   }, [mode]);
 
   useEffect(() => {
+    if (!feedback) return;
+    const timeout = window.setTimeout(() => setFeedback(null), 620);
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
+
+  useEffect(() => {
     window.render_game_to_text = () => JSON.stringify({
       game: "addition-card-match",
       coordinate: "card grid; index increases left-to-right, top-to-bottom",
       mode,
       score,
+      stars,
       turns,
       matchedPairs,
       elapsedSeconds,
@@ -130,14 +154,14 @@ export function AdditionCardMatchWorkspace({ app, spec }: AdditionCardMatchWorks
       if (ms > 0 && checkTimer.current) {
         window.clearTimeout(checkTimer.current);
         checkTimer.current = null;
-        checkSelection(selectedIds);
+        checkSelection(pendingCheckIds.current ?? selectedIds);
       }
     };
     return () => {
       delete window.render_game_to_text;
       delete window.advanceTime;
     };
-  });
+  }, [mode, score, stars, turns, matchedPairs, elapsedSeconds, previewLeft, selectedIds, cards, checkSelection]);
 
   useEffect(() => {
     return () => {
@@ -151,22 +175,18 @@ export function AdditionCardMatchWorkspace({ app, spec }: AdditionCardMatchWorks
   }, []);
 
   function startGame() {
-    if (checkTimer.current) {
-      window.clearTimeout(checkTimer.current);
-      checkTimer.current = null;
-    }
-    if (previewTimer.current) {
-      window.clearTimeout(previewTimer.current);
-      previewTimer.current = null;
-    }
+    clearTimers();
     setCards(createCards());
     setSelectedIds([]);
+    pendingCheckIds.current = null;
+    pendingTurnCount.current = null;
+    setFeedback(null);
     setMode("preview");
     setTurns(0);
     setMatchedPairs(0);
     setElapsedSeconds(0);
     setPreviewLeft(Math.ceil(previewMs / 1000));
-    setMessage("카드 위치를 기억하세요.");
+    setMessage("카드 위치를 기억하세요!");
     previewTimer.current = window.setTimeout(() => {
       previewTimer.current = null;
       setMode("playing");
@@ -181,35 +201,49 @@ export function AdditionCardMatchWorkspace({ app, spec }: AdditionCardMatchWorks
     const nextSelected = [...selectedIds, card.id];
     setSelectedIds(nextSelected);
     if (nextSelected.length === 2) {
+      pendingCheckIds.current = nextSelected;
+      pendingTurnCount.current = turns + 1;
       setMode("checking");
       setTurns((current) => current + 1);
       checkTimer.current = window.setTimeout(() => {
         checkTimer.current = null;
         checkSelection(nextSelected);
-      }, 650);
+      }, 720);
     }
   }
 
   function resetGame() {
-    if (checkTimer.current) {
-      window.clearTimeout(checkTimer.current);
-      checkTimer.current = null;
-    }
-    if (previewTimer.current) {
-      window.clearTimeout(previewTimer.current);
-      previewTimer.current = null;
-    }
+    clearTimers();
     setCards(createCards());
     setSelectedIds([]);
+    pendingCheckIds.current = null;
+    pendingTurnCount.current = null;
+    setFeedback(null);
     setMode("ready");
     setTurns(0);
     setMatchedPairs(0);
     setElapsedSeconds(0);
     setPreviewLeft(Math.ceil(previewMs / 1000));
-    setMessage("시작하면 모든 카드가 잠시 열립니다.");
+    setMessage("식 카드와 정답 카드의 짝을 찾는 놀이예요.");
   }
 
   function reshuffle() {
+    if (!canShuffle) return;
+    clearTimers();
+    setCards((current) => shuffleCards(current.map((card) => ({ ...card, matched: false }))));
+    setSelectedIds([]);
+    pendingCheckIds.current = null;
+    pendingTurnCount.current = null;
+    setFeedback(null);
+    setMode("ready");
+    setTurns(0);
+    setMatchedPairs(0);
+    setElapsedSeconds(0);
+    setPreviewLeft(Math.ceil(previewMs / 1000));
+    setMessage("카드를 새로 섞었어요. 시작을 누르면 잠시 열려요.");
+  }
+
+  function clearTimers() {
     if (checkTimer.current) {
       window.clearTimeout(checkTimer.current);
       checkTimer.current = null;
@@ -218,28 +252,16 @@ export function AdditionCardMatchWorkspace({ app, spec }: AdditionCardMatchWorks
       window.clearTimeout(previewTimer.current);
       previewTimer.current = null;
     }
-    setCards((current) => shuffleCards(current.map((card) => ({ ...card, matched: false }))));
-    setSelectedIds([]);
-    setMode("ready");
-    setTurns(0);
-    setMatchedPairs(0);
-    setElapsedSeconds(0);
-    setPreviewLeft(Math.ceil(previewMs / 1000));
-    setMessage("카드를 다시 섞었어요. 시작하면 잠시 열립니다.");
-  }
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
   }
 
   return (
-    <main className="mvp-page addition-match-page bg-slate-100">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero">
+    <main className="addition-page">
+      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero addition-hero">
         <div className="mvp-hero-copy">
           <div className="mvp-hero-title-row">
             <h1>{app.title}</h1>
             <span className="mvp-surface-icon">
-              <Calculator size={17} />
+              <Plus size={17} />
               덧셈 짝 맞추기
             </span>
             <p>{app.category} · {spec.workLabel}</p>
@@ -253,135 +275,158 @@ export function AdditionCardMatchWorkspace({ app, spec }: AdditionCardMatchWorks
         </div>
       </section>
 
-      <section className="mx-auto mb-14 grid w-[min(1180px,calc(100%-32px))] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="rounded-lg border border-slate-300 bg-white p-4 shadow-[0_16px_38px_rgb(15_23_42/0.08)]">
-          <div className="grid gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-            <span className="text-xs font-bold text-emerald-800">활동 기록</span>
-            <strong className="text-4xl font-black tracking-normal text-slate-900">{matchedPairs}/8쌍</strong>
-            <p className="min-h-10 text-sm font-medium leading-6 text-slate-600">{message}</p>
+      <section className="addition-stage">
+        <div className="addition-hud">
+          <div className="addition-hud-stats">
+            <HudStat icon={<Trophy size={16} />} label="맞춘 짝" value={`${matchedPairs}/${totalPairs}`} accent="emerald" />
+            <HudStat icon={<Sparkles size={16} />} label="점수" value={`${score}`} accent="indigo" />
+            <HudStat icon={<Timer size={16} />} label="시간" value={formatElapsed(elapsedSeconds)} accent="sky" />
+            <HudStat
+              icon={<Star size={16} />}
+              label={mode === "preview" ? "기억 시간" : "시도"}
+              value={mode === "preview" ? `${previewLeft}초` : `${turns}번`}
+              accent="amber"
+            />
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <MathStat label="점수" value={`${score}점`} />
-            <MathStat label="시도" value={`${turns}번`} />
-            <MathStat label="시간" value={formatElapsed(elapsedSeconds)} />
-            <MathStat label="기억" value={mode === "preview" ? `${previewLeft}초` : "완료"} />
-          </div>
-          <div className="mt-4 grid gap-2">
-            <button
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 text-sm font-bold text-white shadow-[0_10px_22px_rgb(4_120_87/0.18)] transition hover:bg-emerald-800"
-              type="button"
-              onClick={startGame}
-            >
-              <Calculator size={18} />
+          <div className="addition-hud-actions">
+            <button className="addition-btn addition-btn--primary" type="button" onClick={startGame}>
+              <Plus size={17} />
               {mode === "ready" ? "게임 시작" : "새 게임"}
             </button>
-            <button
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-white px-4 text-sm font-bold text-emerald-800 transition hover:border-emerald-700"
-              type="button"
-              onClick={reshuffle}
-            >
-              <Shuffle size={18} />
-              카드 섞기
+            <button className="addition-btn addition-btn--ghost" type="button" onClick={reshuffle} disabled={!canShuffle} title={canShuffle ? "카드 새로 섞기" : "게임 중에는 섞을 수 없어요"}>
+              <Shuffle size={17} />
+              섞기
             </button>
-            <button
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-800 transition hover:border-emerald-700 hover:text-emerald-800"
-              type="button"
-              onClick={resetGame}
-            >
-              <RotateCcw size={18} />
+            <button className="addition-btn addition-btn--ghost" type="button" onClick={resetGame}>
+              <RotateCcw size={17} />
               처음부터
             </button>
           </div>
-        </aside>
+        </div>
 
-        <form className="rounded-lg border border-slate-300 bg-white p-3 shadow-[0_18px_46px_rgb(15_23_42/0.10)]" onSubmit={submit}>
-          <div className="grid gap-3 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-bold text-emerald-800">
-                  {mode === "complete" ? "완료" : mode === "checking" ? "확인 중" : mode === "preview" ? "기억 중" : mode === "playing" ? "진행 중" : "준비"}
-                </span>
-                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600">
-                  식 카드 8장 · 정답 카드 8장
-                </span>
+        <div className={`addition-board feedback-${feedback ?? "none"}`}>
+          <div className="addition-progress" aria-hidden="true">
+            {Array.from({ length: totalPairs }).map((_, index) => (
+              <span key={index} className={index < matchedPairs ? "is-on" : ""} />
+            ))}
+          </div>
+
+          <div className="addition-grid" role="grid" aria-label="덧셈 카드 보드">
+            {cards.map((card, index) => {
+              const open = card.matched || selectedIds.includes(card.id) || mode === "preview";
+              const selected = selectedIds.includes(card.id);
+              return (
+                <button
+                  className={[
+                    "addition-card",
+                    `addition-card--${card.kind}`,
+                    open ? "is-open" : "",
+                    selected ? "is-selected" : "",
+                    card.matched ? "is-matched" : "",
+                  ].join(" ")}
+                  data-card-id={card.id}
+                  data-card-kind={card.kind}
+                  data-pair-id={card.pairId}
+                  disabled={mode !== "playing" || card.matched}
+                  key={card.id}
+                  type="button"
+                  aria-label={open ? `${card.kind === "expression" ? "식" : "정답"} ${card.label}` : `카드 ${index + 1}, 뒤집기`}
+                  onClick={() => chooseCard(card)}
+                >
+                  <span className="addition-card-inner" data-open={open}>
+                    <span className="addition-card-face addition-card-back" aria-hidden={open}>
+                      <span className="addition-card-back-badge">
+                        <Plus size={22} strokeWidth={3} />
+                      </span>
+                      <span className="addition-card-back-dots">
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                    </span>
+                    <span className="addition-card-face addition-card-front" aria-hidden={!open}>
+                      <span className="addition-card-tag">{card.kind === "expression" ? "식" : "정답"}</span>
+                      <strong className="addition-card-value">{card.label}</strong>
+                      {card.matched ? (
+                        <span className="addition-card-check">
+                          <Check size={14} strokeWidth={3} />
+                        </span>
+                      ) : (
+                        <span className="addition-card-foot">{selected ? "고른 카드" : " "}</span>
+                      )}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="addition-tray" aria-live="polite">
+            <span className="addition-tray-label">고른 카드</span>
+            <strong className="addition-tray-value">
+              {selectedCards.length ? selectedCards.map((card) => card.label).join("  +  ") : "두 장을 골라 짝을 맞혀요"}
+            </strong>
+            <span className={`addition-tray-msg msg-${feedback ?? "none"}`}>{message}</span>
+          </div>
+
+          {mode === "ready" ? (
+            <div className="addition-overlay">
+              <div className="addition-overlay-card">
+                <span className="addition-overlay-emoji" aria-hidden="true">➕</span>
+                <strong>덧셈 카드 뒤집기</strong>
+                <p>식 카드 {totalPairs}장과 정답 카드 {totalPairs}장이 섞여 있어요. 처음 5초 동안 카드가 모두 열려요. 위치를 기억해서 같은 값의 짝을 찾아요.</p>
+                <button className="addition-btn addition-btn--primary addition-btn--lg" type="button" onClick={startGame}>
+                  <Plus size={18} />
+                  시작하기
+                </button>
               </div>
-              {mode === "complete" ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-700 px-3 py-1 text-xs font-black text-white">
-                  <Trophy size={14} />
-                  모두 맞힘
-                </span>
-              ) : null}
             </div>
+          ) : null}
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {cards.map((card, index) => {
-                const open = card.matched || selectedIds.includes(card.id) || mode === "preview";
-                return (
-                  <button
-                    className={[
-                      "addition-card-tile relative grid min-h-28 content-between rounded-lg border p-3 text-left shadow-[0_8px_16px_rgb(15_23_42/0.06)] transition",
-                      open ? "is-open border-emerald-500 bg-white" : "is-back border-emerald-900 bg-emerald-800 text-white hover:border-emerald-950",
-                      card.matched ? "ring-2 ring-emerald-500/20" : "",
-                    ].join(" ")}
-                    disabled={mode !== "playing" || card.matched}
-                    key={card.id}
-                    type="button"
-                    onClick={() => chooseCard(card)}
-                  >
-                    <span className={open ? "text-xs font-black text-emerald-700" : "text-xs font-black text-emerald-50"}>{open ? (card.kind === "expression" ? "식" : "정답") : `덧셈 ${index + 1}`}</span>
-                    {open ? (
-                      <strong className="text-3xl font-black tracking-normal text-slate-900">{card.label}</strong>
-                    ) : (
-                      <strong className="addition-card-back-mark" aria-hidden="true">＋</strong>
-                    )}
-                    <em className={open ? "text-xs not-italic font-bold text-slate-500" : "text-xs not-italic font-bold text-emerald-50"}>{card.matched ? "짝 완료" : open ? "열림" : "뒤집기"}</em>
-                    {!open ? (
-                      <span className="addition-card-back-pattern" aria-hidden="true">
-                        <i />
-                        <i />
-                        <i />
-                        <i />
-                      </span>
-                    ) : null}
-                    {card.matched ? (
-                      <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-emerald-600 text-white">
-                        <Check size={14} />
-                      </span>
-                    ) : null}
+          {mode === "preview" ? (
+            <div className="addition-preview-flag" aria-hidden="true">
+              <Star size={16} />
+              위치를 기억하세요 · {previewLeft}초
+            </div>
+          ) : null}
+
+          {complete ? (
+            <div className="addition-overlay">
+              <div className="addition-overlay-card addition-overlay-card--win">
+                <div className="addition-stars" aria-label={`별 ${stars}개`}>
+                  {[0, 1, 2].map((index) => (
+                    <Star key={index} size={30} className={index < stars ? "is-on" : ""} fill={index < stars ? "currentColor" : "none"} />
+                  ))}
+                </div>
+                <strong>덧셈 미션 성공!</strong>
+                <p>{totalPairs}쌍을 모두 맞혔어요. {completionSummary}</p>
+                <div className="addition-overlay-actions">
+                  <button className="addition-btn addition-btn--primary addition-btn--lg" type="button" onClick={startGame}>
+                    <Star size={18} />
+                    한 번 더
                   </button>
-                );
-              })}
-            </div>
-
-            <div className="rounded-lg border border-emerald-200 bg-white p-4">
-              <span className="text-xs font-bold text-emerald-700">선택한 카드</span>
-              <strong className="mt-1 block min-h-8 text-lg font-black text-slate-900">
-                {selectedCards.length ? selectedCards.map((card) => card.label).join("  ·  ") : "카드 두 장을 골라요."}
-              </strong>
-              {mode === "preview" ? <p className="mt-1 text-sm font-bold text-emerald-700">카드가 닫히기 전에 위치를 기억하세요.</p> : null}
-              {mode === "complete" ? (
-                <div className="addition-complete-panel mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                  <strong>모든 짝을 찾았어요.</strong>
-                  <p>{formatElapsed(elapsedSeconds)} 동안 {turns}번 시도했습니다.</p>
-                  <button className="mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 text-sm font-black text-white" type="button" onClick={startGame}>
-                    <Trophy size={16} />
-                    다시 도전
+                  <button className="addition-btn addition-btn--ghost addition-btn--lg" type="button" onClick={resetGame}>
+                    <RotateCcw size={18} />
+                    처음 화면
                   </button>
                 </div>
-              ) : null}
+              </div>
             </div>
-          </div>
-        </form>
+          ) : null}
+        </div>
       </section>
     </main>
   );
 }
 
-function MathStat({ label, value }: { label: string; value: string }) {
+function HudStat({ icon, label, value, accent }: { icon: ReactNode; label: string; value: string; accent: string }) {
   return (
-    <article className="grid min-h-20 content-between rounded-lg border border-slate-200 bg-white p-3">
-      <span className="text-xs font-bold text-slate-500">{label}</span>
-      <strong className="break-words text-2xl font-black tracking-normal text-slate-900">{value}</strong>
+    <article className={`addition-hud-stat accent-${accent}`}>
+      <span className="addition-hud-stat-top">
+        {icon}
+        {label}
+      </span>
+      <strong>{value}</strong>
     </article>
   );
 }

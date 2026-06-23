@@ -26,7 +26,7 @@ export function AppCard({ app, priority = false, onSelect }: AppCardProps) {
   const spec = getMvpSpec(app);
   const cardContent = (
     <>
-      <span className="app-card-media">
+      <span className="app-card-media" style={{ position: "relative" }}>
         <Image
           src={versionVisualAsset(app.thumbnail)}
           alt={`${app.title} 미리보기`}

@@ -1,12 +1,11 @@
 "use client";
 
 import { FileImage, Loader2, RotateCcw, Sparkles, Upload } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
-import { versionVisualAsset } from "@/lib/visuals";
 import {
   MvpState,
   applyStateToOutput,
@@ -24,25 +23,9 @@ type InventionLabWorkspaceProps = {
 
 const DEFAULT_INVENTION_SKETCH = "/visuals/sample-uploads/student-smart-planter-sketch.png";
 const INVENTION_POSTER_IMAGE = "/visuals/invention/auto-watering-planter-poster.png";
-const INVENTION_IMAGES = [
-  {
-    src: INVENTION_POSTER_IMAGE,
-    title: "발표 포스터",
-    alt: "자동 급수 화분 발명 포스터",
-  },
-  {
-    src: "/visuals/invention/auto-watering-planter-classroom.png",
-    title: "교실 창가",
-    alt: "교실 창가에서 사용하는 자동 급수 화분",
-  },
-  {
-    src: "/visuals/invention/auto-watering-planter-balcony.png",
-    title: "집 베란다",
-    alt: "집 베란다에서 사용하는 자동 급수 화분",
-  },
-];
 
 export function InventionLabWorkspace({ app, spec }: InventionLabWorkspaceProps) {
+  const router = useRouter();
   const [state, setState] = useState<MvpState>(() => loadMvpState(app, spec));
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
@@ -50,7 +33,6 @@ export function InventionLabWorkspace({ app, spec }: InventionLabWorkspaceProps)
   const values = state.values;
   const primary = useMemo(() => getPrimary(values, app.title), [app.title, values]);
   const sketchPreview = values.uploadDataUrl || DEFAULT_INVENTION_SKETCH;
-  const generated = state.output.imageUrl === INVENTION_POSTER_IMAGE;
 
   useEffect(() => {
     if (!notice) return;
@@ -118,6 +100,7 @@ export function InventionLabWorkspace({ app, spec }: InventionLabWorkspaceProps)
     saveMvpState(app.slug, next);
     setState(next);
     setLoading(false);
+    router.push(`/apps/${app.slug}/result`);
   }
 
   function reset() {
@@ -211,7 +194,7 @@ export function InventionLabWorkspace({ app, spec }: InventionLabWorkspaceProps)
           <div className="mvp-live-header">
             <div>
               <span>미리보기</span>
-              <strong>{generated ? "생성 이미지" : "발명 포스터"}</strong>
+              <strong>발명 포스터 미리보기</strong>
             </div>
           </div>
           <div className="mvp-live-shell">
@@ -224,35 +207,15 @@ export function InventionLabWorkspace({ app, spec }: InventionLabWorkspaceProps)
                 style={{ backgroundImage: `url("${sketchPreview}")` }}
               />
             </div>
-            {generated ? (
-              <div className="invention-inline-gallery" aria-label="생성된 발명 이미지">
-                <figure className="invention-inline-main">
-                  <div className="invention-result-image invention-result-image-poster">
-                    <Image src={versionVisualAsset(state.output.imageUrl || INVENTION_IMAGES[0].src)} alt={`${primary} 발명 포스터`} fill sizes="(min-width: 960px) 34vw, 100vw" className="object-cover" />
-                  </div>
-                  <figcaption>{INVENTION_IMAGES[0].title}</figcaption>
-                </figure>
-                <div className="invention-inline-scenes">
-                  {INVENTION_IMAGES.slice(1).map((image) => (
-                    <figure key={image.src}>
-                      <div className="invention-result-image">
-                        <Image src={versionVisualAsset(image.src)} alt={image.alt} fill sizes="(min-width: 960px) 22vw, 100vw" className="object-cover" />
-                      </div>
-                      <figcaption>{image.title}</figcaption>
-                    </figure>
-                  ))}
-                </div>
+            <div className="invention-poster-preview">
+              <div>
+                <FileImage size={28} />
+                <span>포스터</span>
+                <strong>{primary}</strong>
               </div>
-            ) : (
-              <div className="invention-poster-preview">
-                <div>
-                  <FileImage size={28} />
-                  <span>포스터</span>
-                  <strong>{primary}</strong>
-                </div>
-                <p>{values.feature || "핵심 기능을 입력하면 포스터 문장이 선명해집니다."}</p>
-              </div>
-            )}
+              <p>{values.feature || "핵심 기능을 적으면 포스터에 함께 담겨요."}</p>
+              <span className="invention-poster-hint">만들기를 누르면 예시 발명 이미지가 결과 화면에 나타나요.</span>
+            </div>
           </div>
         </section>
       </form>

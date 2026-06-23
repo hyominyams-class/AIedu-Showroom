@@ -11,6 +11,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Write all user-facing copy as direct product language for the end user.
 - Avoid wording such as "정리했습니다", "구성했습니다", "배치했습니다", "비교할 수 있도록" in visible UI copy unless the user explicitly wants explanatory wording.
 
+## Image Generation Rules
+
+- When generated images need visible text, put the exact text requirements in the image generation prompt and let the image generation model render the text.
+- Do not add, replace, correct, or stylize image text through local post-processing, compositing, canvas drawing, SVG overlays, or manual bitmap editing. If the text is wrong, iterate with the image generation model instead.
+- 이미지 생성 결과물 안의 글자는 후작업으로 합성하거나 고치지 말고, 이미지 생성 모델이 직접 렌더링하도록 프롬프트에 정확히 넣고 재생성으로 해결한다.
+
 ## Product Quality Rules
 
 - When the user asks to create a specific app, tool, game, or experience, do not stop at a shallow demo. Build the smallest complete MVP that a real end user could understand, operate, and judge.

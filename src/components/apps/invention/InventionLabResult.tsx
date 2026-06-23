@@ -1,6 +1,6 @@
 "use client";
 
-import { Clipboard, Download, FileImage, RotateCcw } from "lucide-react";
+import { Clipboard, Download, FileImage, ImageDown, RotateCcw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -45,6 +45,7 @@ export function InventionLabResult({ app, spec }: InventionLabResultProps) {
   const output = applyStateToOutput(app, spec, state);
   const values = state.values;
   const primary = getPrimary(values, app.title);
+  const posterSrc = output.imageUrl || INVENTION_IMAGES[0].src;
 
   useEffect(() => {
     if (!notice) return;
@@ -81,6 +82,14 @@ export function InventionLabResult({ app, spec }: InventionLabResultProps) {
             <Download size={18} />
             결과 저장
           </button>
+          <a
+            className="button-secondary justify-center"
+            href={posterSrc.startsWith("data:") ? posterSrc : versionVisualAsset(posterSrc)}
+            download={`${app.slug}-poster.png`}
+          >
+            <ImageDown size={18} />
+            포스터 저장
+          </a>
           <Link className="button-secondary" href={`/apps/${app.slug}/work`}>
             <RotateCcw size={18} />
             조건 바꾸기
@@ -93,7 +102,7 @@ export function InventionLabResult({ app, spec }: InventionLabResultProps) {
           <div className="invention-gallery">
             <figure className="invention-gallery-main">
               <div className="invention-result-image invention-result-image-poster">
-                <Image src={versionVisualAsset(output.imageUrl || INVENTION_IMAGES[0].src)} alt={`${primary} 발명 포스터`} fill preload sizes="(min-width: 960px) 58vw, 100vw" className="object-cover" />
+                <Image src={versionVisualAsset(posterSrc)} alt={`${primary} 발명 포스터`} fill preload sizes="(min-width: 960px) 58vw, 100vw" className="object-cover" />
               </div>
               <figcaption>{INVENTION_IMAGES[0].title}</figcaption>
             </figure>
@@ -107,6 +116,20 @@ export function InventionLabResult({ app, spec }: InventionLabResultProps) {
                 </figure>
               ))}
             </div>
+          </div>
+
+          <div className="invention-result-extra">
+            <figure className="invention-sketch-ref">
+              <span
+                role="img"
+                aria-label="참조한 아이디어 스케치"
+                style={{ backgroundImage: `url("${values.uploadDataUrl || "/visuals/sample-uploads/student-smart-planter-sketch.png"}")` }}
+              />
+              <figcaption>참조 스케치{values.upload ? ` · ${values.upload}` : ""}</figcaption>
+            </figure>
+            <p className="invention-sample-note">
+              쇼룸에서는 준비된 예시 발명품(자동 급수 화분) 이미지로 보여 드려요. 실제 수업에서는 입력한 발명 아이디어로 이미지를 만듭니다.
+            </p>
           </div>
 
           <div className="invention-result-cards mvp-compact-result-cards">

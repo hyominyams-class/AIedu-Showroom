@@ -58,7 +58,20 @@ export function loadMvpState(app: AppItem, spec: MvpSpec): MvpState {
 }
 
 export function saveMvpState(slug: string, state: MvpState) {
-  window.localStorage.setItem(mvpStorageKey(slug), JSON.stringify(state));
+  try {
+    window.localStorage.setItem(mvpStorageKey(slug), JSON.stringify(state, stripHeavyValues));
+  } catch {
+    // localStorage 용량 초과 등으로 저장이 실패해도 현재 작업은 계속 진행한다.
+  }
+}
+
+// data URL(업로드한 스케치 등)은 용량이 커서 localStorage를 가득 채워
+// 이후 저장이 모두 실패할 수 있으므로 영속화 대상에서 제외한다.
+function stripHeavyValues(key: string, value: unknown) {
+  if (typeof value === "string" && value.startsWith("data:") && value.length > 2048) {
+    return undefined;
+  }
+  return value;
 }
 
 export function getPrimary(values: Record<string, string>, fallback: string) {
@@ -148,15 +161,15 @@ export function buildLocalOutput(app: AppItem, spec: MvpSpec, values: Record<str
     },
     picturebook: {
       title: `${primary} 장면`,
-      lead: `${level} 분위기의 그림책 장면과 다음 문장을 만듭니다.`,
+      lead: "텍스트와 장면 묘사를 한 장의 그림책 이미지로 만듭니다.",
       cards: [
-        { title: "주인공", body: primary },
-        { title: "장소와 배경", body: detail },
-        { title: "다음 문장", body: "작은 선택이 다음 장면의 길을 엽니다." },
+        { title: "텍스트", body: primary },
+        { title: "장면묘사", body: detail },
+        { title: "표현 방식", body: "'풍덩', '첨벙' 같은 말이 물보라와 웅덩이의 일부처럼 보입니다." },
       ],
-      notes: ["주인공", "장소", "분위기"],
-      imageUrl: app.previewImages[1] ?? app.previewImages[0] ?? app.thumbnail,
-      source: "fallback",
+      notes: ["텍스트", "장면묘사", "표현 글자"],
+      imageUrl: app.previewImages[0] ?? app.thumbnail,
+      source: "local",
       updatedAt: now,
     },
     questions: {

@@ -20,24 +20,28 @@ export function AccessCodeForm({ showHeading = true }: AccessCodeFormProps) {
     setError("");
     setLoading(true);
 
-    const response = await fetch("/api/verify-code", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ code }),
-    });
+    try {
+      const response = await fetch("/api/verify-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code }),
+      });
 
-    setLoading(false);
+      if (!response.ok) {
+        setError("입장 코드가 맞지 않습니다.");
+        return;
+      }
 
-    if (!response.ok) {
-      setError("입장 코드가 맞지 않습니다.");
-      return;
+      window.sessionStorage.setItem(ACCESS_STORAGE_KEY, "true");
+      window.dispatchEvent(new Event("showroom:access-change"));
+      router.push("/library");
+    } catch {
+      setError("연결이 불안정합니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setLoading(false);
     }
-
-    window.sessionStorage.setItem(ACCESS_STORAGE_KEY, "true");
-    window.dispatchEvent(new Event("showroom:access-change"));
-    router.push("/library");
   }
 
   return (

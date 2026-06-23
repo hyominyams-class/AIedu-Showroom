@@ -1,6 +1,6 @@
 "use client";
 
-import { Clipboard, Download, Palette, RotateCcw } from "lucide-react";
+import { Clipboard, Download, ImageDown, Palette, RotateCcw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -21,13 +21,20 @@ type PicturebookSceneResultProps = {
   spec: MvpSpec;
 };
 
+const PICTUREBOOK_SAMPLE_IMAGE = "/visuals/picturebook/rain-puddle-word-scene.png";
+const DEFAULT_SCENE_TEXT = "지후는 마법사처럼 물 웅덩이를 달렸습니다";
+const DEFAULT_SCENE_DESCRIPTION =
+  "노란 우비를 입은 지후가 강아지와 함께 비가 그친 운동장의 물 웅덩이를 달립니다. '풍덩', '첨벙' 같은 말이 물보라처럼 튀어 올라 글자가 그림의 일부가 됩니다.";
+
 export function PicturebookSceneResult({ app, spec }: PicturebookSceneResultProps) {
   const [state] = useState<MvpState>(() => loadMvpState(app, spec));
   const [notice, setNotice] = useState("");
   const output = applyStateToOutput(app, spec, state);
   const values = state.values;
   const primary = getPrimary(values, app.title);
-  const nextSentence = values.nextScene?.trim() || output.cards.find((card) => card.title.includes("다음"))?.body || "주인공은 작은 빛이 사라지기 전에 한 걸음 더 나아갑니다.";
+  const sceneText = values.topic?.trim() || DEFAULT_SCENE_TEXT;
+  const sceneDescription = values.notes?.trim() || DEFAULT_SCENE_DESCRIPTION;
+  const imageUrl = output.imageUrl || PICTUREBOOK_SAMPLE_IMAGE;
 
   useEffect(() => {
     if (!notice) return;
@@ -64,6 +71,14 @@ export function PicturebookSceneResult({ app, spec }: PicturebookSceneResultProp
             <Download size={18} />
             원고 저장
           </button>
+          <a
+            className="button-secondary justify-center"
+            href={imageUrl.startsWith("data:") ? imageUrl : versionVisualAsset(imageUrl)}
+            download={`${app.slug}-scene.png`}
+          >
+            <ImageDown size={18} />
+            이미지 저장
+          </a>
           <Link className="button-secondary" href={`/apps/${app.slug}/work`}>
             <RotateCcw size={18} />
             조건 바꾸기
@@ -74,12 +89,12 @@ export function PicturebookSceneResult({ app, spec }: PicturebookSceneResultProp
       <section className="mvp-result-grid mvp-result-grid-lean picturebook-result-layout">
         <article className="mvp-result-main picturebook-spread">
           <div className="picturebook-final-image">
-            <Image src={versionVisualAsset(output.imageUrl || app.previewImages[1] || app.thumbnail)} alt={`${primary} 그림책 장면`} fill preload sizes="(min-width: 960px) 58vw, 100vw" className="object-cover" />
+            <Image src={imageUrl.startsWith("data:") ? imageUrl : versionVisualAsset(imageUrl)} alt={`${primary} 그림책 장면`} fill unoptimized={imageUrl.startsWith("data:")} sizes="(min-width: 960px) 58vw, 100vw" className="object-cover" />
           </div>
           <div className="picturebook-page-text">
-            <span>{output.source === "live" ? "AI 생성 이미지" : "장면 시안"}</span>
-            <h2>{primary}</h2>
-            <p>{nextSentence}</p>
+            <span>텍스트</span>
+            <h2>{sceneText}</h2>
+            <p>{sceneDescription}</p>
           </div>
 
           <div className="picturebook-result-cards mvp-compact-result-cards">

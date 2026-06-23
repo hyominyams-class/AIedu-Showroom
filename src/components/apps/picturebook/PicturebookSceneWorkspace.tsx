@@ -1,16 +1,17 @@
 "use client";
 
-import { ImageIcon, Loader2, Palette, RotateCcw, Sparkles } from "lucide-react";
+import { Loader2, Palette, RotateCcw, Sparkles } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
+import { versionVisualAsset } from "@/lib/visuals";
 import {
   MvpState,
   buildLocalOutput,
   createDefaultState,
-  getLevel,
   loadMvpState,
   saveMvpState,
 } from "@/components/mvp/MvpStorage";
@@ -20,6 +21,10 @@ type PicturebookSceneWorkspaceProps = {
   spec: MvpSpec;
 };
 
+const PICTUREBOOK_SAMPLE_IMAGE = "/visuals/picturebook/rain-puddle-word-scene.png";
+const DEFAULT_SCENE_DESCRIPTION =
+  "노란 우비를 입은 지후가 강아지와 함께 비가 그친 운동장의 물 웅덩이를 달립니다. '풍덩', '첨벙' 같은 말이 물보라처럼 튀어 올라 글자가 그림의 일부가 됩니다.";
+
 export function PicturebookSceneWorkspace({ app, spec }: PicturebookSceneWorkspaceProps) {
   const router = useRouter();
   const [state, setState] = useState<MvpState>(() => loadMvpState(app, spec));
@@ -27,7 +32,8 @@ export function PicturebookSceneWorkspace({ app, spec }: PicturebookSceneWorkspa
   const [notice, setNotice] = useState("");
 
   const values = state.values;
-  const level = useMemo(() => getLevel(values, "따뜻함"), [values]);
+  const sceneText = values.topic?.trim() || "지후는 마법사처럼 물 웅덩이를 달렸습니다";
+  const sceneDescription = values.notes?.trim() || DEFAULT_SCENE_DESCRIPTION;
 
   useEffect(() => {
     if (!notice) return;
@@ -48,39 +54,21 @@ export function PicturebookSceneWorkspace({ app, spec }: PicturebookSceneWorkspa
     });
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
 
     const current = loadMvpState(app, spec);
-    let nextOutput = buildLocalOutput(app, spec, current.values);
-
-    try {
-      const response = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          appSlug: app.slug,
-          mode: "image",
-          values: current.values,
-        }),
-      });
-      const data = await response.json();
-      if (data?.ok) {
-        nextOutput = {
-          ...nextOutput,
-          title: data.title || nextOutput.title,
-          lead: data.lead || nextOutput.lead,
-          cards: Array.isArray(data.cards) && data.cards.length ? data.cards : nextOutput.cards,
-          notes: Array.isArray(data.notes) && data.notes.length ? data.notes : nextOutput.notes,
-          imageUrl: data.imageUrl || nextOutput.imageUrl,
-          source: data.source === "live" ? "live" : "fallback",
-          updatedAt: new Date().toISOString(),
-        };
-      }
-    } catch {
-      nextOutput = { ...nextOutput, source: "fallback" };
+    if (!current.values.topic?.trim()) {
+      setNotice("그림책 문장을 입력해주세요.");
+      return;
     }
+    setLoading(true);
+    const nextOutput = {
+      ...buildLocalOutput(app, spec, current.values),
+      imageUrl: PICTUREBOOK_SAMPLE_IMAGE,
+      source: "local" as const,
+      updatedAt: new Date().toISOString(),
+    };
 
     const next = {
       ...current,
@@ -132,29 +120,13 @@ export function PicturebookSceneWorkspace({ app, spec }: PicturebookSceneWorkspa
           </div>
 
           <label className="mvp-field">
-            <span>이야기 주제</span>
-            <input value={values.topic ?? ""} placeholder="예: 비 오는 날 길을 잃은 달팽이" onChange={(event) => updateValue("topic", event.target.value)} />
+            <span>텍스트</span>
+            <input value={values.topic ?? ""} placeholder="지후는 마법사처럼 물 웅덩이를 달렸습니다" onChange={(event) => updateValue("topic", event.target.value)} />
           </label>
 
           <label className="mvp-field">
-            <span>장면 분위기</span>
-            <select value={values.level ?? "따뜻함"} onChange={(event) => updateValue("level", event.target.value)}>
-              {["따뜻함", "모험", "몽환", "유쾌함"].map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="mvp-field">
-            <span>등장인물과 배경</span>
-            <textarea value={values.notes ?? ""} placeholder="주인공, 장소, 색감을 적어보세요." onChange={(event) => updateValue("notes", event.target.value)} />
-          </label>
-
-          <label className="mvp-field">
-            <span>다음 장면 씨앗</span>
-            <input value={values.nextScene ?? ""} placeholder="예: 주인공이 작은 불빛을 따라갑니다." onChange={(event) => updateValue("nextScene", event.target.value)} />
+            <span>장면묘사</span>
+            <textarea value={values.notes ?? ""} placeholder={DEFAULT_SCENE_DESCRIPTION} onChange={(event) => updateValue("notes", event.target.value)} />
           </label>
 
           <div className="mvp-action-row">
@@ -180,14 +152,14 @@ export function PicturebookSceneWorkspace({ app, spec }: PicturebookSceneWorkspa
             </div>
           </div>
           <div className="mvp-live-shell">
-            <div className="picturebook-scene-frame mvp-image-placeholder" aria-label="그림책 장면 미리보기창">
-              <ImageIcon size={30} />
-              <span>미리보기창</span>
-              <p>{values.topic || app.title}</p>
+            <div className="picturebook-sample-preview">
+              <Image src={versionVisualAsset(PICTUREBOOK_SAMPLE_IMAGE)} alt="우비 입은 지후와 강아지가 물 웅덩이를 달리는 그림책 장면" fill sizes="(min-width: 960px) 44vw, 100vw" className="object-cover" />
             </div>
-            <div className="picturebook-caption">
-              <Palette size={20} />
-              <p>{level} 분위기 · {values.notes || "인물과 배경을 입력하세요."}</p>
+            <div className="picturebook-brief">
+              <span>텍스트</span>
+              <strong>{sceneText}</strong>
+              <span>장면묘사</span>
+              <p>{sceneDescription}</p>
             </div>
           </div>
         </section>

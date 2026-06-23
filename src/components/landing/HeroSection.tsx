@@ -11,22 +11,11 @@ const landingPreviewImages: Partial<Record<AppItem["slug"], string>> = {
   "class-timer-station": "/visuals/landing-previews/class-timer-station.png",
   "concept-explainer": "/visuals/landing-previews/concept-explainer.png",
   "english-vocab-cards": "/visuals/landing-previews/english-vocab-cards.png",
+  "addition-card-match-game": "/visuals/landing-previews/addition-card-match-game.png",
   "history-typing-rain": "/visuals/landing-previews/history-typing-rain.png",
-  "reading-passport-stampbook": "/visuals/landing-previews/reading-passport-stampbook.png",
   "ai-invention-lab": "/visuals/landing-previews/ai-invention-lab.png",
-  "ai-question-helper": "/visuals/landing-previews/ai-question-helper.png",
   "picturebook-scene-maker": "/visuals/landing-previews/picturebook-scene-maker.png",
   "poetry-picture-maker": "/visuals/landing-previews/poetry-picture-maker.png",
-  "cardnews-campaign-maker": "/visuals/landing-previews/cardnews-campaign-maker.png",
-  "presentation-feedback-coach": "/visuals/landing-previews/presentation-feedback-coach.png",
-  "science-experiment-cards": "/visuals/landing-previews/science-experiment-cards.png",
-  "safety-webtoon-maker": "/visuals/landing-previews/safety-webtoon-maker.png",
-  "project-portfolio-studio": "/visuals/landing-previews/project-portfolio-studio.png",
-  "local-issue-data-map": "/visuals/landing-previews/local-issue-data-map.png",
-  "class-chatbot-hub": "/visuals/landing-previews/class-chatbot-hub.png",
-  "economy-education-web": "/visuals/landing-previews/economy-education-web.png",
-  "smile-question-class": "/visuals/landing-previews/smile-question-class.png",
-  "advanced-app-tbd": "/visuals/landing-previews/advanced-app-tbd.png",
 };
 
 export function HeroSection() {
@@ -69,7 +58,7 @@ export function HeroSection() {
                     src={versionVisualAsset(landingPreviewImages[app.slug] ?? app.previewImages[1] ?? app.thumbnail)}
                     alt=""
                     fill
-                    priority={index < 3}
+                    preload={index < 3}
                     sizes="(min-width: 1280px) 300px, (min-width: 768px) 28vw, 72vw"
                     className="object-cover"
                   />

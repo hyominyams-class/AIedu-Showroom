@@ -34,6 +34,32 @@ const defaultAuthorPrompt = [
   "학생에게 보여줄 수 있도록 한국어 3-5문장으로 답해줘.",
 ].join("\n");
 
+const tonePresets = [
+  { id: "warm", label: "다정한 작가", hint: "따뜻하고 낮은 목소리", prompt: defaultAuthorPrompt },
+  {
+    id: "calm",
+    label: "차분한 해설",
+    hint: "담담하게 장면을 짚어요",
+    prompt: [
+      "너는 「강아지똥」을 함께 읽는 작가야.",
+      "차분하고 담담한 말투로 작품의 장면을 천천히 짚어 줘.",
+      "원문 밖의 사실은 단정하지 말고 작품을 읽은 생각으로 말해줘.",
+      "학생에게 보여줄 수 있도록 한국어 3-5문장으로 답해줘.",
+    ].join("\n"),
+  },
+  {
+    id: "clear",
+    label: "또박또박 선생님",
+    hint: "핵심을 분명하게",
+    prompt: [
+      "너는 「강아지똥」을 함께 읽는 작가야.",
+      "분명하고 또박또박한 말투로 핵심을 짚어 설명해 줘.",
+      "원문 밖의 사실은 단정하지 말고 작품을 읽은 생각으로 말해줘.",
+      "학생에게 보여줄 수 있도록 한국어 3-5문장으로 답해줘.",
+    ].join("\n"),
+  },
+];
+
 const starterMessages: ChatMessage[] = [
   {
     role: "assistant",
@@ -43,11 +69,17 @@ const starterMessages: ChatMessage[] = [
 
 export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProps) {
   const [sourceText, setSourceText] = useState(defaultSource);
-  const [authorPrompt, setAuthorPrompt] = useState(defaultAuthorPrompt);
+  const [tone, setTone] = useState("warm");
   const [question, setQuestion] = useState("강아지똥은 왜 민들레에게 자신을 내어주었나요?");
   const [messages, setMessages] = useState<ChatMessage[]>(starterMessages);
   const [loading, setLoading] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const [aiNotice, setAiNotice] = useState(false);
   const typingTimer = useRef<number | null>(null);
+  const threadRef = useRef<HTMLDivElement | null>(null);
+
+  const authorPrompt = tonePresets.find((preset) => preset.id === tone)?.prompt ?? defaultAuthorPrompt;
+  const busy = loading || typing;
 
   useEffect(() => {
     return () => {
@@ -57,10 +89,17 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
     };
   }, []);
 
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (thread) {
+      thread.scrollTop = thread.scrollHeight;
+    }
+  }, [messages, loading, typing]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleanQuestion = question.trim();
-    if (!cleanQuestion || loading) return;
+    if (!cleanQuestion || busy) return;
 
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: cleanQuestion }];
     setMessages(nextMessages);
@@ -68,6 +107,7 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
     setLoading(true);
 
     let answer = "";
+    let usedFallback = false;
     try {
       const response = await fetch("/api/ai/generate", {
         method: "POST",
@@ -87,11 +127,14 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
       });
       const data = await response.json();
       answer = data?.message || data?.lead || fallbackAnswer(cleanQuestion, sourceText, authorPrompt);
+      usedFallback = !data?.message || data?.source === "fallback";
     } catch {
       answer = fallbackAnswer(cleanQuestion, sourceText, authorPrompt);
+      usedFallback = true;
     }
 
     setLoading(false);
+    setAiNotice(usedFallback);
     typeAssistantMessage(answer);
   }
 
@@ -101,6 +144,7 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
     }
 
     let index = 0;
+    setTyping(true);
     setMessages((current) => [...current, { role: "assistant", content: "" }]);
     typingTimer.current = window.setInterval(() => {
       index += 2;
@@ -115,6 +159,7 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
       if (index >= answer.length && typingTimer.current) {
         window.clearInterval(typingTimer.current);
         typingTimer.current = null;
+        setTyping(false);
       }
     }, 22);
   }
@@ -127,6 +172,8 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
     setMessages(starterMessages);
     setQuestion("강아지똥은 왜 민들레에게 자신을 내어주었나요?");
     setLoading(false);
+    setTyping(false);
+    setAiNotice(false);
   }
 
   return (
@@ -156,16 +203,24 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
             <MessageSquareText size={18} />
             <strong>챗봇 설정</strong>
           </div>
-          <section className="author-prompt-card" aria-label="페르소나 프롬프트">
+          <section className="author-prompt-card" aria-label="작가 말투">
             <div className="author-source-title">
-              <span><MessageSquareText size={15} /> 페르소나 프롬프트</span>
-              <strong>수정 가능</strong>
+              <span><MessageSquareText size={15} /> 작가 말투</span>
+              <strong>{tonePresets.find((preset) => preset.id === tone)?.label}</strong>
             </div>
-            <div className="author-prompt-example">
-              <label className="mvp-field author-prompt-field">
-                <span>페르소나</span>
-                <textarea value={authorPrompt} onChange={(event) => setAuthorPrompt(event.target.value)} />
-              </label>
+            <div className="author-tone-row">
+              {tonePresets.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={`author-tone-chip ${tone === preset.id ? "is-active" : ""}`}
+                  aria-pressed={tone === preset.id}
+                  onClick={() => setTone(preset.id)}
+                >
+                  <strong>{preset.label}</strong>
+                  <span>{preset.hint}</span>
+                </button>
+              ))}
             </div>
           </section>
 
@@ -190,10 +245,10 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
             </button>
           </div>
 
-          <div className="author-chat-thread" aria-live="polite">
+          <div className="author-chat-thread" aria-live="polite" ref={threadRef}>
             {messages.map((message, index) => (
               <article className={`author-chat-bubble ${message.role}`} key={`${message.role}-${index}`}>
-                {message.content ? <MarkdownMessage text={message.content} /> : "답변을 쓰는 중..."}
+                {message.content ? <MarkdownMessage text={message.content} /> : "…"}
               </article>
             ))}
             {loading ? (
@@ -204,14 +259,19 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
             ) : null}
           </div>
 
+          {aiNotice && !busy ? (
+            <p className="author-ai-notice">AI 연결이 없어 준비된 작가 답변으로 이어가요.</p>
+          ) : null}
+
           <form className="author-chat-form" onSubmit={submit}>
             <input
               value={question}
-              placeholder="작가에게 묻고 싶은 말을 입력하세요."
+              disabled={busy}
+              placeholder={busy ? "작가가 답하는 중이에요" : "작가에게 묻고 싶은 말을 입력하세요."}
               onChange={(event) => setQuestion(event.target.value)}
             />
-            <button className="button-primary" disabled={loading || !question.trim()} type="submit" aria-label="보내기">
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+            <button className="button-primary" disabled={busy || !question.trim()} type="submit" aria-label="보내기">
+              {busy ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
             </button>
           </form>
         </section>

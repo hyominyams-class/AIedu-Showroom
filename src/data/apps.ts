@@ -334,10 +334,10 @@ const allApps: AppItem[] = [
       "한 자리 수 덧셈식 카드와 정답 카드를 뒤집어 짝을 맞힙니다.",
     longDescription:
       "1~2학년 학생이 식 카드 8장과 정답 카드 8장을 섞은 보드에서 같은 값을 찾아 짝짓는 활동입니다. 카드를 두 장씩 뒤집고, 맞으면 고정되며 모든 짝을 찾으면 활동이 끝납니다.",
-    thumbnail: "/visuals/generated-thumbnails/english-vocab-cards.png",
+    thumbnail: "/visuals/generated-thumbnails/addition-card-match-game.png",
     previewImages: [
-      "/visuals/generated-thumbnails/english-vocab-cards.png",
-      "/visuals/quiz-card-builder-preview.png",
+      "/visuals/generated-thumbnails/addition-card-match-game.png",
+      "/visuals/landing-previews/addition-card-match-game.png",
     ],
     tags: ["덧셈", "카드뒤집기", "1-2학년"],
     targetGrade: "초1-초2",
@@ -461,223 +461,23 @@ const allApps: AppItem[] = [
     },
   },
   {
-    slug: "reading-passport-stampbook",
-    title: "독서여권 스탬프북",
-    category: "독서교육",
-    shortDescription:
-      "읽은 책과 생각을 기록하고 독서여권 스탬프를 받는 앱입니다.",
-    longDescription:
-      "학생이 책 제목, 나라 또는 장르, 생각 문장을 입력하면 여권형 기록 카드가 완성됩니다. 저장 기능 없이도 독서 활동 화면을 만들 수 있습니다.",
-    thumbnail: "/visuals/generated-thumbnails/reading-passport-stampbook.png",
-    previewImages: [
-      "/visuals/generated-thumbnails/reading-passport-stampbook.png",
-      "/visuals/reading-passport-stampbook-preview.png",
-    ],
-    tags: ["독서 기록", "스탬프", "세계시민"],
-    targetGrade: "초3-중2",
-    difficulty: "하",
-    buildBasis: "HTML, CSS, JavaScript",
-    lessonUse: "독후 활동 기록과 공유",
-    demoType: "정적 기록장",
-    route: "/apps/reading-passport-stampbook",
-    actionLabel: "독서여권 만들기",
-    fields: [
-      {
-        id: "topic",
-        label: "책 제목",
-        type: "text",
-        placeholder: "예: 긴긴밤",
-      },
-      {
-        id: "level",
-        label: "여권 구역",
-        type: "select",
-        options: ["우리 동네", "아시아", "아프리카", "상상 세계"],
-      },
-      {
-        id: "notes",
-        label: "남기고 싶은 문장",
-        type: "textarea",
-        placeholder: "책을 읽고 떠오른 생각을 적어보세요.",
-      },
-    ],
-    loadingMessages: [
-      "여권 기록면을 준비하는 중입니다.",
-      "생각 문장을 담는 중입니다.",
-      "스탬프를 찍는 중입니다.",
-    ],
-    mockResult: {
-      title: "독서여권 기록",
-      summary:
-        "책 정보, 생각 문장, 다음 독서 질문이 담긴 여권형 기록 카드입니다.",
-      highlights: ["읽은 책 기록", "생각 문장", "다음 질문"],
-      cards: [
-        {
-          title: "여권 스탬프",
-          body: "오늘의 독서 여정이 한 장의 스탬프로 남습니다.",
-        },
-        {
-          title: "생각 질문",
-          body: "등장인물의 선택을 내 생활과 연결해 봅니다.",
-        },
-        {
-          title: "공유 문장",
-          body: "친구에게 추천하고 싶은 한 장면을 고릅니다.",
-        },
-      ],
-    },
-  },
-  {
-    slug: "cardnews-campaign-maker",
-    title: "카드뉴스 캠페인 메이커",
-    category: "사회",
-    shortDescription:
-      "사회 문제를 4장짜리 카드뉴스 캠페인 초안으로 바꿔줍니다.",
-    longDescription:
-      "학생이 주제, 대상, 주장을 입력하면 문제 제기, 근거, 참여 요청 카드가 완성됩니다.",
-    thumbnail: "/visuals/generated-thumbnails/cardnews-campaign-maker.png",
-    previewImages: [
-      "/visuals/generated-thumbnails/cardnews-campaign-maker.png",
-      "/visuals/cardnews-campaign-maker-preview.png",
-    ],
-    tags: ["사회 문제", "국어", "캠페인"],
-    targetGrade: "초5-고1",
-    difficulty: "하",
-    buildBasis: "HTML, CSS, JavaScript",
-    lessonUse: "사회 참여 프로젝트와 설득 글쓰기",
-    demoType: "정적 템플릿",
-    route: "/apps/cardnews-campaign-maker",
-    actionLabel: "카드뉴스 초안 만들기",
-    fields: [
-      {
-        id: "topic",
-        label: "캠페인 주제",
-        type: "text",
-        placeholder: "예: 학교 주변 쓰레기 줄이기",
-      },
-      {
-        id: "level",
-        label: "대상",
-        type: "select",
-        options: ["우리 반", "전교생", "학부모", "지역 주민"],
-      },
-      {
-        id: "notes",
-        label: "핵심 주장",
-        type: "textarea",
-        placeholder: "우리가 전하고 싶은 주장을 입력하세요.",
-      },
-    ],
-    loadingMessages: [
-      "카드 문장을 고르는 중입니다.",
-      "주장과 근거를 나누는 중입니다.",
-      "참여 요청 문장을 고르는 중입니다.",
-    ],
-    mockResult: {
-      title: "4장 카드뉴스",
-      summary:
-        "문제, 근거, 해결 방법, 참여 요청이 이어지는 캠페인 카드 초안입니다.",
-      highlights: ["문제 제기", "근거 카드", "참여 요청"],
-      cards: [
-        {
-          title: "1장 문제",
-          body: "지금 우리 주변에서 보이는 문제를 한눈에 보여줍니다.",
-        },
-        {
-          title: "2장 근거",
-          body: "왜 이 문제가 중요한지 수치와 사례로 설명합니다.",
-        },
-        {
-          title: "3장 행동",
-          body: "학생이 바로 실천할 수 있는 방법을 제안합니다.",
-        },
-      ],
-    },
-  },
-  {
-    slug: "science-experiment-cards",
-    title: "과학 실험 절차 카드",
-    category: "과학",
-    shortDescription:
-      "실험 주제를 단계, 관찰 포인트, 생각 질문 카드로 나눕니다.",
-    longDescription:
-      "실험 안내를 학생용 카드로 바꾸는 기본형 앱입니다. 조건문과 배열만으로도 실험 절차 화면을 만들 수 있습니다.",
-    thumbnail: "/visuals/generated-thumbnails/science-experiment-cards.png",
-    previewImages: [
-      "/visuals/generated-thumbnails/science-experiment-cards.png",
-      "/visuals/science-experiment-cards-preview.png",
-    ],
-    tags: ["탐구", "실험", "관찰"],
-    targetGrade: "초4-중2",
-    difficulty: "하",
-    buildBasis: "HTML, CSS, JavaScript",
-    lessonUse: "실험 전 안내와 관찰 기록",
-    demoType: "정적 단계 카드",
-    route: "/apps/science-experiment-cards",
-    actionLabel: "실험 카드 만들기",
-    fields: [
-      {
-        id: "topic",
-        label: "실험 주제",
-        type: "text",
-        placeholder: "예: 물의 상태 변화",
-      },
-      {
-        id: "level",
-        label: "탐구 방식",
-        type: "select",
-        options: ["관찰", "비교", "측정", "분류"],
-      },
-      {
-        id: "notes",
-        label: "주의할 점",
-        type: "textarea",
-        placeholder: "안전 안내나 준비물을 입력하세요.",
-      },
-    ],
-    loadingMessages: [
-      "실험 단계를 나누는 중입니다.",
-      "관찰 포인트를 고르는 중입니다.",
-      "생각 질문을 붙이는 중입니다.",
-    ],
-    mockResult: {
-      title: "탐구 절차 카드",
-      summary:
-        "준비, 관찰, 기록, 생각 질문으로 이어지는 실험 안내 카드입니다.",
-      highlights: ["준비물", "관찰 포인트", "생각 질문"],
-      cards: [
-        {
-          title: "준비",
-          body: "실험 도구와 안전 약속을 확인합니다.",
-        },
-        {
-          title: "관찰",
-          body: "변하는 모습과 그대로인 조건을 나눠 기록합니다.",
-        },
-        {
-          title: "질문",
-          body: "결과가 달라졌다면 어떤 조건이 영향을 주었는지 생각합니다.",
-        },
-      ],
-    },
-  },
-  {
     slug: "picturebook-scene-maker",
     title: "그림책 장면 제작기",
     category: "AI 이미지",
     shortDescription:
-      "주제, 인물, 배경을 한 장의 그림책 장면으로 보여줍니다.",
+      "문장과 장면 묘사를 한 장의 그림책 이미지로 보여줍니다.",
     longDescription:
-      "이미지 생성 API를 연결하면 학생의 이야기 설정을 그림책 장면으로 바꿀 수 있습니다. 쇼룸에서는 미리 준비한 예시 장면을 체험합니다.",
+      "학생의 문장과 장면 묘사를 그림책 장면으로 바꿉니다. 글자가 물보라가 되는 표현을 함께 살펴볼 수 있습니다.",
     thumbnail: "/visuals/generated-thumbnails/picturebook-scene-maker.png",
     previewImages: [
+      "/visuals/picturebook/rain-puddle-word-scene.png",
       "/visuals/generated-thumbnails/picturebook-scene-maker.png",
       "/visuals/picturebook-scene-maker-preview.png",
     ],
     tags: ["이미지 생성", "국어", "창작"],
     targetGrade: "초2-중1",
     difficulty: "중",
-    buildBasis: "시 문장과 장면 묘사",
+    buildBasis: "텍스트와 장면 묘사",
     lessonUse: "이야기 쓰기와 장면 상상",
     demoType: "이미지 생성형",
     route: "/apps/picturebook-scene-maker",
@@ -685,45 +485,39 @@ const allApps: AppItem[] = [
     fields: [
       {
         id: "topic",
-        label: "이야기 주제",
+        label: "텍스트",
         type: "text",
-        placeholder: "예: 비 오는 날 길을 잃은 달팽이",
-      },
-      {
-        id: "level",
-        label: "장면 분위기",
-        type: "select",
-        options: ["따뜻함", "모험", "몽환", "유쾌함"],
+        placeholder: "지후는 마법사처럼 물 웅덩이를 달렸습니다",
       },
       {
         id: "notes",
-        label: "등장인물과 배경",
+        label: "장면묘사",
         type: "textarea",
-        placeholder: "주인공, 장소, 색감을 적어보세요.",
+        placeholder: "노란 우비를 입은 지후가 강아지와 함께 비가 그친 운동장의 물 웅덩이를 달립니다. '풍덩', '첨벙' 같은 말이 물보라처럼 튀어 올라 글자가 그림의 일부가 됩니다.",
       },
     ],
     loadingMessages: [
-      "장면 구도를 잡는 중입니다.",
-      "인물과 배경을 맞추는 중입니다.",
-      "그림책 문장을 붙이는 중입니다.",
+      "물 웅덩이 장면을 여는 중입니다.",
+      "풍덩 글자를 물보라에 얹는 중입니다.",
+      "그림책 문장을 맞추는 중입니다.",
     ],
     mockResult: {
       title: "그림책 한 장면",
       summary:
-        "이야기 설정을 바탕으로 장면 이미지와 짧은 그림책 문장이 만들어졌습니다.",
-      highlights: ["장면 이미지", "그림책 문장", "다음 장면 질문"],
+        "텍스트와 장면 묘사가 그림책 이미지와 표현 글자로 이어집니다.",
+      highlights: ["장면 이미지", "그림책 문장", "표현 글자"],
       cards: [
         {
-          title: "장면 문장",
-          body: "주인공은 작지만 선명한 발자국을 따라 새로운 길을 찾습니다.",
+          title: "텍스트",
+          body: "지후는 마법사처럼 물 웅덩이를 달렸습니다.",
         },
         {
-          title: "그림 요소",
-          body: "전경에는 주인공, 배경에는 수업 주제가 드러나는 물건을 둡니다.",
+          title: "장면묘사",
+          body: "노란 우비를 입은 지후와 강아지가 비가 그친 운동장의 물 웅덩이를 달립니다.",
         },
         {
-          title: "다음 질문",
-          body: "이 장면 다음에 주인공은 누구를 만나게 될까요?",
+          title: "표현 방식",
+          body: "'풍덩', '첨벙' 같은 말이 물보라와 웅덩이의 일부처럼 보입니다.",
         },
       ],
     },
@@ -803,26 +597,25 @@ const allApps: AppItem[] = [
   },
   {
     slug: "ai-question-helper",
-    title: "AI 활동지 메이커",
+    title: "학습지 생성기",
     category: "AI 수업 도구",
     shortDescription:
-      "수업 주제에서 바로 쓰는 활동지 문항과 안내를 만듭니다.",
+      "수업 주제만 넣으면 바로 인쇄해 나눠줄 학습지를 만듭니다.",
     longDescription:
-      "수업 주제와 학년, 활동 목표를 바탕으로 도입, 개념 확인, 적용, 마무리 활동을 한 장짜리 활동지 흐름으로 만듭니다. 교사가 바로 다듬어 배포할 수 있는 학생용 문항과 체크 포인트를 함께 제공합니다.",
+      "수업 주제와 학년, 학습 유형을 넣으면 학습 목표부터 번호 문항, 정답과 해설까지 갖춘 한 장짜리 학습지를 만듭니다. 빈칸, 단답형, 선택형, 서술형 문항이 배점과 함께 들어가고 바로 인쇄할 수 있습니다.",
     thumbnail: "/visuals/generated-thumbnails/ai-question-helper.png",
     previewImages: [
       "/visuals/generated-thumbnails/ai-question-helper.png",
       "/visuals/ai-question-helper-detail-preview.png",
     ],
-    tags: ["활동지", "수업자료", "평가"],
+    tags: ["학습지", "문항 생성", "정답 해설"],
     targetGrade: "초3-고2",
     difficulty: "중",
-    buildBasis: "브라우저에서 바로 실행",
-    lessonUse: "수업 활동지 초안과 형성평가",
-    demoType: "활동지 생성형",
+    buildBasis: "수업 주제와 학년·유형",
+    lessonUse: "학습지 출제와 형성평가",
+    demoType: "학습지 생성형",
     route: "/apps/ai-question-helper",
-    externalUrl: "https://ai-catchmind-gge7lcpcca-du.a.run.app/",
-    actionLabel: "앱 체험하기",
+    actionLabel: "학습지 만들기",
     fields: [
       {
         id: "topic",
@@ -831,107 +624,46 @@ const allApps: AppItem[] = [
         placeholder: "예: 물의 순환",
       },
       {
+        id: "grade",
+        label: "학년",
+        type: "select",
+        options: ["초등 3학년", "초등 4학년", "초등 5학년", "초등 6학년", "중학교 1학년", "중학교 2학년", "중학교 3학년"],
+      },
+      {
         id: "level",
-        label: "활동 유형",
+        label: "학습지 유형",
         type: "select",
         options: ["개념 확인", "탐구 활동", "토론 활동", "형성평가"],
       },
       {
         id: "notes",
-        label: "학년과 목표",
+        label: "학습 목표",
         type: "textarea",
-        placeholder: "예: 초등 5학년, 증발과 응결을 생활 예시로 이해하기",
+        placeholder: "예: 증발과 응결을 생활 예시로 이해하기",
       },
     ],
     loadingMessages: [
-      "수업 흐름을 잡는 중입니다.",
-      "학생 활동을 고르는 중입니다.",
-      "활동지 문항을 만드는 중입니다.",
+      "학습 목표를 잡는 중입니다.",
+      "문항과 배점을 짜는 중입니다.",
+      "정답과 해설을 채우는 중입니다.",
     ],
     mockResult: {
-      title: "수업 활동지",
+      title: "수업 학습지",
       summary:
-        "도입, 개념 확인, 적용, 마무리로 이어지는 활동지 초안입니다.",
-      highlights: ["도입 활동", "개념 확인", "마무리 점검"],
+        "학습 목표와 번호 문항, 정답·해설이 한 장에 담긴 학습지입니다.",
+      highlights: ["학습 목표", "유형별 문항", "정답·해설"],
       cards: [
         {
-          title: "도입",
-          body: "오늘 배울 주제와 연결되는 생활 장면을 떠올립니다.",
+          title: "학습 목표",
+          body: "오늘 수업에서 학생이 도달할 목표를 한 문장으로 보여줍니다.",
         },
         {
-          title: "개념 확인",
-          body: "핵심 낱말을 자기 말로 설명하고 예시를 붙입니다.",
+          title: "유형별 문항",
+          body: "빈칸, 단답형, 선택형, 서술형 문항을 배점과 함께 제공합니다.",
         },
         {
-          title: "마무리",
-          body: "수업 목표에 맞는 짧은 확인 문항으로 이해를 점검합니다.",
-        },
-      ],
-    },
-  },
-  {
-    slug: "presentation-feedback-coach",
-    title: "발표 피드백 코치",
-    category: "AI 챗봇",
-    shortDescription:
-      "발표 대본을 장점, 보완점, 더 좋은 표현으로 나눠 보여줍니다.",
-    longDescription:
-      "챗봇 API를 연결하면 학생 발표문에 맞춘 피드백을 줄 수 있습니다. 쇼룸에서는 대본 일부를 결과에 반영해 실제 피드백 화면처럼 체험합니다.",
-    thumbnail: "/visuals/generated-thumbnails/presentation-feedback-coach.png",
-    previewImages: [
-      "/visuals/generated-thumbnails/presentation-feedback-coach.png",
-      "/visuals/presentation-feedback-coach-preview.png",
-    ],
-    tags: ["발표", "피드백", "국어"],
-    targetGrade: "초5-고3",
-    difficulty: "중",
-    buildBasis: "챗봇 API 키",
-    lessonUse: "발표 연습과 말하기 평가",
-    demoType: "텍스트 피드백형",
-    route: "/apps/presentation-feedback-coach",
-    actionLabel: "피드백 받기",
-    fields: [
-      {
-        id: "topic",
-        label: "발표 주제",
-        type: "text",
-        placeholder: "예: 우리 동네 하천을 지키는 방법",
-      },
-      {
-        id: "level",
-        label: "피드백 초점",
-        type: "select",
-        options: ["내용", "표현", "구조", "전달력"],
-      },
-      {
-        id: "notes",
-        label: "발표 대본",
-        type: "textarea",
-        placeholder: "발표문 일부를 입력하세요.",
-      },
-    ],
-    loadingMessages: [
-      "발표 문장을 읽는 중입니다.",
-      "강점을 찾는 중입니다.",
-      "바꿔 말할 문장을 고르는 중입니다.",
-    ],
-    mockResult: {
-      title: "발표 피드백",
-      summary:
-        "좋은 점, 보완할 점, 다시 말해볼 문장이 한 화면에 나뉘어 표시됩니다.",
-      highlights: ["장점", "보완점", "수정 문장"],
-      cards: [
-        {
-          title: "잘한 점",
-          body: "주제와 관련된 생활 사례가 있어 듣는 사람이 쉽게 따라옵니다.",
-        },
-        {
-          title: "보완할 점",
-          body: "마지막 문장에 실천 요청을 더하면 발표 목적이 분명해집니다.",
-        },
-        {
-          title: "다시 말하기",
-          body: "그래서 우리는 오늘부터 한 가지 행동을 함께 시작할 수 있습니다.",
+          title: "정답·해설",
+          body: "문항마다 정답과 채점 기준을 함께 확인할 수 있습니다.",
         },
       ],
     },
@@ -1003,421 +735,188 @@ const allApps: AppItem[] = [
     },
   },
   {
-    slug: "safety-webtoon-maker",
-    title: "생활 안전 웹툰 생성기",
-    category: "AI 이미지",
+    slug: "practical-consumer-mission",
+    title: "실과 합리적 소비 실천",
+    category: "실과",
     shortDescription:
-      "생활 안전 주제를 4컷 웹툰으로 보여주는 앱입니다.",
+      "예산 안에서 장보기 선택을 해 보고 소비 판단을 점검하는 미션 앱입니다.",
     longDescription:
-      "텍스트와 이미지 API를 연결하면 주제에 맞춘 웹툰 장면을 만들 수 있습니다. 생활지도, 보건, 안전교육에서 바로 응용할 수 있습니다.",
-    thumbnail: "/visuals/generated-thumbnails/safety-webtoon-maker.png",
+      "학생이 장보기 목록, 예산, 구매 후보를 살피며 꼭 필요한 물건과 나중에 살 물건을 고릅니다. 선택 결과는 잔액, 필요도, 합리적 소비 점수로 이어집니다. 별도 접속 정보 없이 바로 열 수 있습니다.",
+    thumbnail: "/visuals/generated-thumbnails/practical-consumer-mission.png",
     previewImages: [
-      "/visuals/generated-thumbnails/safety-webtoon-maker.png",
-      "/visuals/safety-webtoon-maker-preview.png",
+      "/visuals/generated-thumbnails/practical-consumer-mission.png",
+      "/visuals/landing-previews/practical-consumer-mission.png",
     ],
-    tags: ["생활지도", "웹툰", "안전교육"],
-    targetGrade: "초1-중2",
+    tags: ["장보기", "합리적 소비", "예산"],
+    targetGrade: "초5-중1",
     difficulty: "중",
-    buildBasis: "이미지 생성 API 키",
-    lessonUse: "안전 규칙 만들기와 역할극",
-    demoType: "이미지 생성형",
-    route: "/apps/safety-webtoon-maker",
-    actionLabel: "웹툰 만들기",
-    fields: [
-      {
-        id: "topic",
-        label: "안전 주제",
-        type: "text",
-        placeholder: "예: 복도에서 뛰지 않기",
-      },
-      {
-        id: "level",
-        label: "상황",
-        type: "select",
-        options: ["교실", "복도", "운동장", "등하굣길"],
-      },
-      {
-        id: "notes",
-        label: "등장인물",
-        type: "textarea",
-        placeholder: "등장인물과 안전 메시지를 입력하세요.",
-      },
-    ],
-    loadingMessages: [
-      "4컷 장면을 나누는 중입니다.",
-      "안전 행동을 강조하는 중입니다.",
-      "마지막 메시지를 고르는 중입니다.",
-    ],
-    mockResult: {
-      title: "4컷 안전 웹툰",
-      summary:
-        "위험 상황에서 바른 행동으로 이어지는 웹툰 장면 초안입니다.",
-      highlights: ["문제 상황", "위험 인식", "안전 메시지"],
-      cards: [
-        {
-          title: "1컷",
-          body: "학생이 익숙한 장소에서 위험 행동을 마주합니다.",
-        },
-        {
-          title: "2컷",
-          body: "친구가 위험을 알아차리고 멈춤 신호를 보냅니다.",
-        },
-        {
-          title: "3-4컷",
-          body: "바른 행동과 안전 문구가 함께 보입니다.",
-        },
-      ],
-    },
-  },
-  {
-    slug: "project-portfolio-studio",
-    title: "탐구 프로젝트 포트폴리오",
-    category: "프로젝트 학습",
-    shortDescription:
-      "팀별 산출물, 피드백, 발표 자료를 한곳에 모으는 프로젝트 앱입니다.",
-    longDescription:
-      "팀별 할 일, 자료 링크, 피드백을 저장하는 프로젝트 보드입니다. 로컬 저장과 파일 링크만으로도 수업용 MVP를 만들 수 있습니다.",
-    thumbnail: "/visuals/generated-thumbnails/project-portfolio-studio.png",
-    previewImages: [
-      "/visuals/generated-thumbnails/project-portfolio-studio.png",
-      "/visuals/project-portfolio-studio-preview.png",
-    ],
-    tags: ["포트폴리오", "협업", "저장소"],
-    targetGrade: "초5-고3",
-    difficulty: "중",
-    buildBasis: "로컬 저장, 파일 링크, 선택형 DB",
-    lessonUse: "팀 프로젝트 산출물 관리",
-    demoType: "프로젝트형",
-    route: "/apps/project-portfolio-studio",
-    actionLabel: "포트폴리오 보드 보기",
-    fields: [
-      {
-        id: "topic",
-        label: "프로젝트 주제",
-        type: "text",
-        placeholder: "예: 학교 텃밭 개선 프로젝트",
-      },
-      {
-        id: "level",
-        label: "진행 단계",
-        type: "select",
-        options: ["탐구 계획", "자료 수집", "시제품 제작", "발표 준비"],
-      },
-      {
-        id: "notes",
-        label: "팀 목표",
-        type: "textarea",
-        placeholder: "팀이 이번 주에 달성할 목표를 입력하세요.",
-      },
-    ],
-    loadingMessages: [
-      "팀 보드를 여는 중입니다.",
-      "산출물 칸을 준비하는 중입니다.",
-      "피드백 카드를 연결하는 중입니다.",
-    ],
-    mockResult: {
-      title: "팀 포트폴리오 보드",
-      summary:
-        "계획, 자료, 산출물, 피드백이 한 프로젝트 보드에 모였습니다.",
-      highlights: ["팀별 저장", "피드백", "발표 자료"],
-      cards: [
-        {
-          title: "계획",
-          body: "팀 목표와 역할을 카드로 고정합니다.",
-        },
-        {
-          title: "산출물",
-          body: "사진, 문서, 링크를 차시별로 저장합니다.",
-        },
-        {
-          title: "피드백",
-          body: "교사와 친구 의견을 다음 할 일로 연결합니다.",
-        },
-      ],
-    },
-  },
-  {
-    slug: "local-issue-data-map",
-    title: "지역 문제 데이터 맵",
-    category: "사회",
-    shortDescription:
-      "지역 데이터를 지도와 카드로 연결해 탐구 주제를 보여줍니다.",
-    longDescription:
-      "지도 API와 학생 관찰 기록을 연결하는 지역 탐구 앱입니다. 지도 마커와 CSV 저장만으로도 수업용 MVP를 만들 수 있습니다.",
-    thumbnail: "/visuals/generated-thumbnails/local-issue-data-map.png",
-    previewImages: [
-      "/visuals/generated-thumbnails/local-issue-data-map.png",
-      "/visuals/local-issue-data-map-preview.png",
-    ],
-    tags: ["지도", "공공데이터", "지역 탐구"],
-    targetGrade: "초6-고3",
-    difficulty: "중",
-    buildBasis: "지도 API, CSV, 공공데이터 API",
-    lessonUse: "지역 문제 탐구와 데이터 리터러시",
-    demoType: "외부 데이터 연동형",
-    route: "/apps/local-issue-data-map",
-    actionLabel: "데이터 맵 보기",
-    fields: [
-      {
-        id: "topic",
-        label: "탐구할 지역 문제",
-        type: "text",
-        placeholder: "예: 학교 주변 횡단보도 안전",
-      },
-      {
-        id: "level",
-        label: "데이터 종류",
-        type: "select",
-        options: ["안전", "환경", "교통", "복지"],
-      },
-      {
-        id: "notes",
-        label: "관찰한 장소",
-        type: "textarea",
-        placeholder: "지도에 표시할 장소나 관찰 내용을 입력하세요.",
-      },
-    ],
-    loadingMessages: [
-      "지도 마커를 준비하는 중입니다.",
-      "지역 데이터를 맞추는 중입니다.",
-      "탐구 카드를 여는 중입니다.",
-    ],
-    mockResult: {
-      title: "지역 데이터 맵",
-      summary:
-        "지도 마커, 문제 카드, 현장 질문이 함께 보이는 탐구 화면입니다.",
-      highlights: ["지도 마커", "데이터 카드", "현장 질문"],
-      cards: [
-        {
-          title: "마커",
-          body: "관찰 장소를 지도 위에 표시하고 사진 기록과 연결합니다.",
-        },
-        {
-          title: "데이터",
-          body: "공공데이터와 학생 관찰 기록을 같은 기준으로 봅니다.",
-        },
-        {
-          title: "제안",
-          body: "학생이 직접 제안할 해결 행동을 카드로 남깁니다.",
-        },
-      ],
-    },
-  },
-  {
-    slug: "class-chatbot-hub",
-    title: "학급 챗봇 허브",
-    category: "AI 챗봇",
-    shortDescription:
-      "학급 자료를 기반으로 과목별 챗봇을 운영하는 허브입니다.",
-    longDescription:
-      "학급 자료와 학생 질문을 연결하는 AI 답변 앱입니다. 텍스트 생성 API와 작은 자료 묶음으로 수업용 MVP를 만들 수 있습니다.",
-    thumbnail: "/visuals/generated-thumbnails/class-chatbot-hub.png",
-    previewImages: [
-      "/visuals/generated-thumbnails/class-chatbot-hub.png",
-      "/visuals/class-chatbot-hub-preview.png",
-    ],
-    tags: ["RAG", "챗봇", "자료 검색"],
-    targetGrade: "초5-고3",
-    difficulty: "중",
-    buildBasis: "LLM API, 자료 텍스트, 로컬 기록",
-    lessonUse: "학급 자료 검색과 자기주도 질문",
-    demoType: "복합 AI 연동형",
-    route: "/apps/class-chatbot-hub",
-    actionLabel: "챗봇 허브 보기",
-    fields: [
-      {
-        id: "topic",
-        label: "챗봇 역할",
-        type: "text",
-        placeholder: "예: 과학 탐구 보고서 도우미",
-      },
-      {
-        id: "level",
-        label: "연결 자료",
-        type: "select",
-        options: ["학급 공지", "수업 자료", "프로젝트 문서", "평가 기준"],
-      },
-      {
-        id: "notes",
-        label: "학생 질문 예시",
-        type: "textarea",
-        placeholder: "학생이 자주 묻는 질문을 입력하세요.",
-      },
-    ],
-    loadingMessages: [
-      "자료 묶음을 찾는 중입니다.",
-      "질문 경로를 연결하는 중입니다.",
-      "챗봇 답변 화면을 준비하는 중입니다.",
-    ],
-    mockResult: {
-      title: "학급 챗봇 허브",
-      summary:
-        "자료 출처, 추천 질문, 답변 카드가 함께 보이는 챗봇 허브입니다.",
-      highlights: ["자료 검색", "추천 질문", "권한 관리"],
-      cards: [
-        {
-          title: "자료 기반 답변",
-          body: "업로드한 학급 문서에서 근거가 되는 내용을 찾아 답합니다.",
-        },
-        {
-          title: "추천 질문",
-          body: "학생 수준에 맞는 다음 질문을 자동으로 제안합니다.",
-        },
-        {
-          title: "운영 화면",
-          body: "교사는 자료 공개 범위와 챗봇 역할을 조정합니다.",
-        },
-      ],
-    },
-  },
-  {
-    slug: "economy-education-web",
-    title: "경제교육 웹",
-    category: "경제교육",
-    shortDescription:
-      "학생이 예산, 소비, 저축 결정을 직접 조작하는 경제 수업용 웹입니다.",
-    longDescription:
-      "경제 개념을 설명 카드가 아니라 선택, 결과, 피드백이 있는 웹 활동으로 다룹니다. 별도 프로젝트 링크에서 완성형 화면을 엽니다.",
-    thumbnail: "/visuals/generated-thumbnails/economy-education-web.png",
-    previewImages: [
-      "/visuals/generated-thumbnails/economy-education-web.png",
-      "/visuals/landing-previews/economy-education-web.png",
-    ],
-    tags: ["경제교육", "선택 활동", "시뮬레이션"],
-    targetGrade: "초5-고1",
-    difficulty: "상",
     buildBasis: "별도 웹앱 링크",
-    lessonUse: "소비 선택, 예산 계획, 금융 문해력",
+    lessonUse: "실과 소비 생활과 예산 선택",
     demoType: "외부 링크",
-    route: "https://example.com/economy-education-web",
-    externalUrl: "https://example.com/economy-education-web",
-    actionLabel: "경제교육 웹 열기",
+    route: "https://shopping-mission-app.streamlit.app/",
+    externalUrl: "https://shopping-mission-app.streamlit.app/",
+    actionLabel: "장보기 미션 열기",
     fields: [],
     loadingMessages: [],
     mockResult: {
-      title: "경제교육 웹",
-      summary: "예산과 선택 결과가 있는 경제 수업 웹입니다.",
-      highlights: ["예산 선택", "소비 결과", "피드백"],
+      title: "장보기 미션",
+      summary:
+        "예산, 구매 목록, 소비 이유가 함께 보이는 합리적 소비 활동입니다.",
+      highlights: ["예산", "필요도", "소비 점수"],
       cards: [
         {
           title: "예산",
-          body: "학생이 제한된 예산 안에서 선택합니다.",
+          body: "정해진 금액 안에서 살 물건을 고릅니다.",
         },
         {
-          title: "결과",
-          body: "선택에 따른 잔액과 기회비용을 확인합니다.",
+          title: "선택",
+          body: "필요한 물건과 원하는 물건을 나누어 판단합니다.",
         },
         {
-          title: "피드백",
-          body: "소비와 저축 판단을 짧게 되돌아봅니다.",
+          title: "점수",
+          body: "잔액과 선택 이유를 바탕으로 소비 점수를 확인합니다.",
+        },
+      ],
+    },
+  },
+  {
+    slug: "ai-catchmind",
+    title: "AI Catchmind",
+    category: "AI 게임",
+    shortDescription:
+      "팔레트에 그린 그림을 AI가 맞히는 그림 퀴즈 앱입니다.",
+    longDescription:
+      "학생이 제한 시간 안에 주제 그림을 그리고 AI가 정답을 추측합니다. 선 색, 굵기, 지우개를 쓰며 그림 힌트를 만들고, AI의 추측 기록으로 점수를 얻습니다. 입장코드: 1234",
+    thumbnail: "/visuals/generated-thumbnails/ai-catchmind.png",
+    previewImages: [
+      "/visuals/generated-thumbnails/ai-catchmind.png",
+      "/visuals/landing-previews/ai-catchmind.png",
+    ],
+    tags: ["그림 퀴즈", "팔레트", "AI 추측"],
+    targetGrade: "초3-중3",
+    difficulty: "중",
+    buildBasis: "별도 웹앱 링크",
+    lessonUse: "어휘 표현, 창의 그림, 모둠 게임",
+    demoType: "외부 링크",
+    route: "https://ai-catchmind-gge7lcpcca-du.a.run.app",
+    externalUrl: "https://ai-catchmind-gge7lcpcca-du.a.run.app",
+    actionLabel: "그림 퀴즈 열기",
+    fields: [],
+    loadingMessages: [],
+    mockResult: {
+      title: "AI 그림 추측",
+      summary:
+        "그림판, AI 추측 기록, 점수가 함께 보이는 캐치마인드 게임입니다.",
+      highlights: ["팔레트", "AI 추측", "점수"],
+      cards: [
+        {
+          title: "그림판",
+          body: "주제에 맞는 그림을 선과 색으로 표현합니다.",
+        },
+        {
+          title: "AI 추측",
+          body: "AI가 그림을 보고 정답 후보를 말합니다.",
+        },
+        {
+          title: "점수",
+          body: "정답까지 걸린 시간과 추측 횟수로 점수를 얻습니다.",
+        },
+      ],
+    },
+  },
+  {
+    slug: "class-game-management",
+    title: "학급경영 class-game",
+    category: "학급경영",
+    shortDescription:
+      "문제를 풀고 학급 코인을 얻어 투자와 저축을 운영하는 학급 게임 앱입니다.",
+    longDescription:
+      "학생은 문제를 풀어 학급 코인을 모으고 저축, 투자, 소비 선택을 합니다. 교사는 문제, 보상, 이벤트를 조정해 학급 활동과 경제 습관을 함께 운영합니다. 교사용 ID: teacher_example, 학생용 ID: aiedap_example1 ~ aiedap_example40, 비밀번호: a123456789",
+    thumbnail: "/visuals/generated-thumbnails/class-game-management.png",
+    previewImages: [
+      "/visuals/generated-thumbnails/class-game-management.png",
+      "/visuals/landing-previews/class-game-management.png",
+    ],
+    tags: ["학급 코인", "문제 풀이", "투자 저축"],
+    targetGrade: "초4-중2",
+    difficulty: "상",
+    buildBasis: "별도 웹앱 링크",
+    lessonUse: "학급 보상, 경제 습관, 문제 풀이",
+    demoType: "외부 링크",
+    route: "https://class-game-dun.vercel.app/",
+    externalUrl: "https://class-game-dun.vercel.app/",
+    actionLabel: "class-game 열기",
+    fields: [],
+    loadingMessages: [],
+    mockResult: {
+      title: "학급 코인 보드",
+      summary:
+        "문제 풀이, 코인 보상, 저축과 투자 선택이 연결되는 학급 게임입니다.",
+      highlights: ["문제 풀이", "학급 코인", "투자 저축"],
+      cards: [
+        {
+          title: "문제",
+          body: "학생이 문제를 풀고 코인을 얻습니다.",
+        },
+        {
+          title: "저축",
+          body: "모은 코인을 목표 금액까지 쌓아 갑니다.",
+        },
+        {
+          title: "투자",
+          body: "이벤트에 따라 수익과 손실을 확인합니다.",
         },
       ],
     },
   },
   {
     slug: "smile-question-class",
-    title: "질문수업(스마일 프로젝트)",
+    title: "Smile",
     category: "질문수업",
     shortDescription:
-      "학생 질문을 모으고 분류해 토론과 탐구 주제로 연결하는 수업 웹입니다.",
+      "질문을 만들고 AI 점수로 질문의 힘을 확인하는 질문수업 앱입니다.",
     longDescription:
-      "스마일 프로젝트 질문수업을 위한 별도 웹앱입니다. 질문 등록, 분류, 선택, 공유 화면은 외부 링크에서 엽니다.",
+      "학생이 만든 질문을 AI가 명확성, 탐구성, 확장성 기준으로 채점합니다. 점수와 피드백을 보고 질문을 고쳐 더 좋은 탐구 질문으로 발전시킵니다.",
     thumbnail: "/visuals/generated-thumbnails/smile-question-class.png",
     previewImages: [
       "/visuals/generated-thumbnails/smile-question-class.png",
       "/visuals/landing-previews/smile-question-class.png",
     ],
-    tags: ["질문수업", "스마일 프로젝트", "토론"],
-    targetGrade: "초4-고3",
+    tags: ["질문 만들기", "AI 채점", "스마일"],
+    targetGrade: "초4-고2",
     difficulty: "상",
     buildBasis: "별도 웹앱 링크",
-    lessonUse: "질문 만들기, 질문 분류, 탐구 주제 선정",
+    lessonUse: "질문 만들기와 탐구 질문 개선",
     demoType: "외부 링크",
     route: "https://example.com/smile-question-class",
     externalUrl: "https://example.com/smile-question-class",
-    actionLabel: "질문수업 웹 열기",
+    actionLabel: "Smile 열기",
     fields: [],
     loadingMessages: [],
     mockResult: {
-      title: "질문수업 보드",
-      summary: "학생 질문을 모아 수업 질문으로 고르는 웹입니다.",
-      highlights: ["질문 등록", "분류", "공유"],
+      title: "질문 점수",
+      summary:
+        "학생 질문, AI 점수, 개선 피드백이 함께 보이는 질문수업 화면입니다.",
+      highlights: ["질문", "AI 점수", "개선 피드백"],
       cards: [
         {
-          title: "질문 등록",
-          body: "학생이 떠올린 질문을 바로 남깁니다.",
+          title: "질문",
+          body: "학생이 수업 주제에서 궁금한 점을 씁니다.",
         },
         {
-          title: "분류",
-          body: "사실, 이유, 탐구, 토론 질문으로 나눕니다.",
+          title: "점수",
+          body: "AI가 질문의 명확성, 탐구성, 확장성을 평가합니다.",
         },
         {
-          title: "선택",
-          body: "수업에서 다룰 질문을 함께 고릅니다.",
-        },
-      ],
-    },
-  },
-  {
-    slug: "advanced-app-tbd",
-    title: "미정",
-    category: "상급 프로젝트",
-    shortDescription:
-      "세 번째 상급 프로젝트 자리입니다.",
-    longDescription:
-      "별도 링크로 연결할 상급 프로젝트를 넣는 자리입니다. 주제와 URL이 정해지면 카드 정보만 교체합니다.",
-    thumbnail: "/visuals/generated-thumbnails/advanced-app-tbd.png",
-    previewImages: [
-      "/visuals/generated-thumbnails/advanced-app-tbd.png",
-      "/visuals/landing-previews/advanced-app-tbd.png",
-    ],
-    tags: ["상급", "외부 링크", "준비중"],
-    targetGrade: "미정",
-    difficulty: "상",
-    buildBasis: "별도 웹앱 링크",
-    lessonUse: "미정",
-    demoType: "외부 링크",
-    route: "https://example.com/advanced-app-tbd",
-    externalUrl: "https://example.com/advanced-app-tbd",
-    actionLabel: "링크 열기",
-    fields: [],
-    loadingMessages: [],
-    mockResult: {
-      title: "상급 프로젝트",
-      summary: "외부 링크로 연결할 프로젝트 자리입니다.",
-      highlights: ["주제 미정", "URL 교체", "상급"],
-      cards: [
-        {
-          title: "주제",
-          body: "프로젝트 주제를 정하면 카드 이름을 바꿉니다.",
-        },
-        {
-          title: "링크",
-          body: "완성형 웹앱 주소를 연결합니다.",
-        },
-        {
-          title: "운영",
-          body: "쇼룸에서는 내부 체험 화면을 만들지 않습니다.",
+          title: "개선",
+          body: "피드백을 바탕으로 질문을 다시 다듬습니다.",
         },
       ],
     },
   },
 ];
 
-const activeAppSlugs = new Set([
-  "author-meet-chatbot",
-  "class-timer-station",
-  "concept-explainer",
-  "english-vocab-cards",
-  "addition-card-match-game",
-  "history-typing-rain",
-  "poetry-picture-maker",
-  "picturebook-scene-maker",
-  "ai-question-helper",
-  "ai-invention-lab",
-]);
-
-export const apps: AppItem[] = allApps.filter((app) => activeAppSlugs.has(app.slug));
+export const apps: AppItem[] = allApps;
 
 export const difficultyLabels: Record<Difficulty, string> = {
   하: "바로 실행형",
@@ -1519,57 +1018,17 @@ const demoExamples: Record<string, DemoExample> = {
     artifactSubtitle: "낙하 단어 · 생명 3개 · 콤보 점수",
     artifactNotes: ["훈민정음", "임진왜란", "수원화성"],
   },
-  "reading-passport-stampbook": {
-    values: {
-      topic: "긴긴밤",
-      level: "상상 세계",
-      notes: "함께 살아가는 힘을 떠올리게 한 장면을 남깁니다.",
-    },
-    resultTitle: "독서여권 기록면",
-    resultLead: "읽은 책, 생각 문장, 추천 질문이 여권 한 면에 정리됩니다.",
-    artifactLabel: "여권 기록",
-    artifactTitle: "긴긴밤 독서 스탬프",
-    artifactSubtitle: "상상 세계 입국 · 생각 문장 저장",
-    artifactNotes: ["오늘의 장면", "추천 이유", "다음 독서 질문"],
-  },
-  "cardnews-campaign-maker": {
-    values: {
-      topic: "학교 주변 쓰레기 줄이기",
-      level: "전교생",
-      notes: "점심시간 뒤 운동장과 정문 주변을 함께 정리하자는 메시지입니다.",
-    },
-    resultTitle: "4장 캠페인 카드뉴스",
-    resultLead: "문제 제기, 근거, 행동 제안, 참여 요청이 한 세트로 보입니다.",
-    artifactLabel: "카드뉴스",
-    artifactTitle: "우리 학교 10분 클린업",
-    artifactSubtitle: "전교생 참여 캠페인",
-    artifactNotes: ["문제 사진 자리", "참여 방법", "공유 문구"],
-  },
-  "science-experiment-cards": {
-    values: {
-      topic: "물의 상태 변화",
-      level: "관찰",
-      notes: "뜨거운 물과 얼음을 다룰 때 보안경과 장갑을 사용합니다.",
-    },
-    resultTitle: "탐구 절차 카드",
-    resultLead: "준비물, 관찰 포인트, 기록 질문이 단계별 카드로 나뉩니다.",
-    artifactLabel: "실험 카드",
-    artifactTitle: "물의 상태 변화 관찰",
-    artifactSubtitle: "준비 · 관찰 · 기록 · 질문",
-    artifactNotes: ["안전 약속", "관찰 기준", "생각 질문"],
-  },
   "picturebook-scene-maker": {
     values: {
-      topic: "비 오는 날 길을 잃은 달팽이",
-      level: "따뜻함",
-      notes: "작은 달팽이가 노란 우산 아래에서 친구를 만납니다.",
+      topic: "지후는 마법사처럼 물 웅덩이를 달렸습니다",
+      notes: "노란 우비를 입은 지후가 강아지와 함께 비가 그친 운동장의 물 웅덩이를 달립니다. '풍덩', '첨벙' 같은 말이 물보라처럼 튀어 올라 글자가 그림의 일부가 됩니다.",
     },
     resultTitle: "그림책 장면 이미지",
-    resultLead: "이야기 설정이 한 장의 장면과 다음 문장으로 이어집니다.",
+    resultLead: "텍스트와 장면 묘사가 한 장의 그림책 이미지로 이어집니다.",
     artifactLabel: "장면 생성",
-    artifactTitle: "노란 우산 아래 달팽이",
-    artifactSubtitle: "따뜻한 비 오는 골목",
-    artifactNotes: ["전경 캐릭터", "배경 색감", "다음 장면 문장"],
+    artifactTitle: "지후는 마법사처럼 물 웅덩이를 달렸습니다",
+    artifactSubtitle: "풍덩 풍덩 물 웅덩이",
+    artifactNotes: ["우비 입은 소년", "함께 달리는 강아지", "물보라 글자"],
   },
   "poetry-picture-maker": {
     values: {
@@ -1588,28 +1047,16 @@ const demoExamples: Record<string, DemoExample> = {
   "ai-question-helper": {
     values: {
       topic: "물의 순환",
+      grade: "초등 5학년",
       level: "탐구 활동",
-      notes: "초등 5학년, 증발과 응결을 생활 예시로 이해하기",
+      notes: "증발과 응결을 생활 예시로 이해하기",
     },
-    resultTitle: "물의 순환 활동지",
-    resultLead: "도입, 관찰, 적용, 마무리 문항이 한 장의 수업 흐름으로 이어집니다.",
-    artifactLabel: "활동지",
-    artifactTitle: "물의 순환 탐구",
-    artifactSubtitle: "도입 1개 · 탐구 2개 · 마무리 1개",
-    artifactNotes: ["생활 예시", "증발과 응결", "확인 문항"],
-  },
-  "presentation-feedback-coach": {
-    values: {
-      topic: "우리 동네 하천을 지키는 방법",
-      level: "전달력",
-      notes: "하천 주변 쓰레기를 줄이기 위해 우리가 할 수 있는 일을 발표합니다.",
-    },
-    resultTitle: "발표 피드백 카드",
-    resultLead: "장점, 보완점, 다시 말할 문장이 발표 연습 화면에 표시됩니다.",
-    artifactLabel: "피드백",
-    artifactTitle: "하천 지킴이 발표 코칭",
-    artifactSubtitle: "전달력 중심 피드백",
-    artifactNotes: ["좋은 생활 사례", "마지막 요청 강화", "짧은 문장 제안"],
+    resultTitle: "물의 순환 학습지",
+    resultLead: "학습 목표와 번호 문항, 정답·해설이 한 장의 학습지로 이어집니다.",
+    artifactLabel: "학습지",
+    artifactTitle: "물의 순환 학습지",
+    artifactSubtitle: "초등 5학년 · 총 100점",
+    artifactNotes: ["빈칸·서술형 문항", "배점 표시", "정답·해설"],
   },
   "ai-invention-lab": {
     values: {
@@ -1627,58 +1074,6 @@ const demoExamples: Record<string, DemoExample> = {
     artifactTitle: "자동 급수 화분",
     artifactSubtitle: "발명품 포스터 · 실사 사용 예시",
     artifactNotes: ["포스터", "교실 사용 장면", "집 베란다 사용 장면"],
-  },
-  "safety-webtoon-maker": {
-    values: {
-      topic: "복도에서 뛰지 않기",
-      level: "복도",
-      notes: "친구 둘이 멈춤 신호를 보고 천천히 걷는 장면입니다.",
-    },
-    resultTitle: "4컷 안전 웹툰",
-    resultLead: "위험 상황과 안전 약속을 담은 네 컷 웹툰입니다.",
-    artifactLabel: "웹툰",
-    artifactTitle: "복도에서는 천천히",
-    artifactSubtitle: "위험 인식 · 바른 행동 · 안전 약속",
-    artifactNotes: ["1컷 위험", "2컷 멈춤", "3-4컷 약속"],
-  },
-  "project-portfolio-studio": {
-    values: {
-      topic: "학교 텃밭 개선 프로젝트",
-      level: "시제품 제작",
-      notes: "자동 물주기 장치와 안내 표지판을 이번 주에 완성합니다.",
-    },
-    resultTitle: "팀 포트폴리오 보드",
-    resultLead: "계획, 자료, 산출물, 피드백이 프로젝트 진행 단계별로 정리됩니다.",
-    artifactLabel: "프로젝트 보드",
-    artifactTitle: "초록텃밭 팀 보드",
-    artifactSubtitle: "시제품 제작 단계",
-    artifactNotes: ["역할 카드", "사진 산출물", "교사 피드백"],
-  },
-  "local-issue-data-map": {
-    values: {
-      topic: "학교 주변 횡단보도 안전",
-      level: "교통",
-      notes: "정문 앞 횡단보도와 골목길 차량 속도를 함께 관찰합니다.",
-    },
-    resultTitle: "지역 문제 데이터 맵",
-    resultLead: "지도 마커, 관찰 기록, 공공데이터 카드가 탐구 화면으로 연결됩니다.",
-    artifactLabel: "데이터 맵",
-    artifactTitle: "정문 앞 안전 지도",
-    artifactSubtitle: "교통 데이터 · 현장 관찰",
-    artifactNotes: ["위험 지점", "관찰 메모", "개선 제안"],
-  },
-  "class-chatbot-hub": {
-    values: {
-      topic: "과학 탐구 보고서 도우미",
-      level: "프로젝트 문서",
-      notes: "변인 통제와 결론 쓰는 방법을 자주 묻습니다.",
-    },
-    resultTitle: "학급 챗봇 허브",
-    resultLead: "자료 출처, 추천 질문, 답변 카드가 과목별 챗봇 화면에 표시됩니다.",
-    artifactLabel: "챗봇",
-    artifactTitle: "과학 탐구 보고서 챗봇",
-    artifactSubtitle: "프로젝트 문서 기반 답변",
-    artifactNotes: ["근거 문서", "추천 질문", "공개 범위"],
   },
 };
 

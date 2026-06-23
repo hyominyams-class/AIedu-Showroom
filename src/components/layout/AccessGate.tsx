@@ -21,15 +21,21 @@ export function AccessGate({ children }: AccessGateProps) {
         return;
       }
 
-      const response = await fetch("/api/access-status", { cache: "no-store" });
-      const data = (await response.json()) as { hasAccess?: boolean };
+      try {
+        const response = await fetch("/api/access-status", { cache: "no-store" });
+        const data = (await response.json()) as { hasAccess?: boolean };
 
-      if (!active) return;
+        if (!active) return;
 
-      if (data.hasAccess) {
-        window.sessionStorage.setItem(ACCESS_STORAGE_KEY, "true");
-        setHasAccess(true);
-      } else {
+        if (data.hasAccess) {
+          window.sessionStorage.setItem(ACCESS_STORAGE_KEY, "true");
+          setHasAccess(true);
+        } else {
+          setHasAccess(false);
+          router.replace("/login");
+        }
+      } catch {
+        if (!active) return;
         setHasAccess(false);
         router.replace("/login");
       }

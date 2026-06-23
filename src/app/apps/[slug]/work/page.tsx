@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import type { ComponentType } from "react";
 import { AdditionCardMatchWorkspace } from "@/components/apps/addition/AdditionCardMatchWorkspace";
 import { AuthorChatbotWorkspace } from "@/components/apps/author/AuthorChatbotWorkspace";
 import { ConceptExplainerWorkspace } from "@/components/apps/concept/ConceptExplainerWorkspace";
@@ -10,17 +11,31 @@ import { PoetryPictureWorkspace } from "@/components/apps/poetry/PoetryPictureWo
 import { QuestionHelperWorkspace } from "@/components/apps/question/QuestionHelperWorkspace";
 import { TimerDashboardWorkspace } from "@/components/apps/timer/TimerDashboardWorkspace";
 import { VocabCardsWorkspace } from "@/components/apps/vocab/VocabCardsWorkspace";
-import { MvpWorkspace } from "@/components/mvp/MvpWorkspace";
 import { AccessGate } from "@/components/layout/AccessGate";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
-import { apps, getAppBySlug } from "@/data/apps";
-import { getMvpSpec } from "@/data/mvp";
+import { apps, getAppBySlug, type AppItem } from "@/data/apps";
+import { getMvpSpec, type MvpSpec } from "@/data/mvp";
 
 type AppWorkPageProps = {
   params: Promise<{
     slug: string;
   }>;
+};
+
+type WorkspaceComponent = ComponentType<{ app: AppItem; spec: MvpSpec }>;
+
+const workspaceBySlug: Record<string, WorkspaceComponent> = {
+  "author-meet-chatbot": AuthorChatbotWorkspace,
+  "class-timer-station": TimerDashboardWorkspace,
+  "concept-explainer": ConceptExplainerWorkspace,
+  "english-vocab-cards": VocabCardsWorkspace,
+  "addition-card-match-game": AdditionCardMatchWorkspace,
+  "history-typing-rain": HistoryTypingGameWorkspace,
+  "ai-question-helper": QuestionHelperWorkspace,
+  "poetry-picture-maker": PoetryPictureWorkspace,
+  "picturebook-scene-maker": PicturebookSceneWorkspace,
+  "ai-invention-lab": InventionLabWorkspace,
 };
 
 export const dynamicParams = false;
@@ -53,37 +68,16 @@ export default async function AppWorkPage({ params }: AppWorkPageProps) {
   }
 
   const spec = getMvpSpec(app);
+  const Workspace = workspaceBySlug[app.slug];
 
-  if (!spec) {
+  if (!spec || !Workspace) {
     notFound();
   }
 
   return (
     <AccessGate>
       <Header backHref="/library" backLabel="앱 선택" />
-      {app.slug === "author-meet-chatbot" ? (
-        <AuthorChatbotWorkspace app={app} spec={spec} />
-      ) : app.slug === "class-timer-station" ? (
-        <TimerDashboardWorkspace app={app} spec={spec} />
-      ) : app.slug === "concept-explainer" ? (
-        <ConceptExplainerWorkspace app={app} spec={spec} />
-      ) : app.slug === "english-vocab-cards" ? (
-        <VocabCardsWorkspace app={app} spec={spec} />
-      ) : app.slug === "addition-card-match-game" ? (
-        <AdditionCardMatchWorkspace app={app} spec={spec} />
-      ) : app.slug === "history-typing-rain" ? (
-        <HistoryTypingGameWorkspace app={app} spec={spec} />
-      ) : app.slug === "poetry-picture-maker" ? (
-        <PoetryPictureWorkspace app={app} spec={spec} />
-      ) : app.slug === "ai-question-helper" ? (
-        <QuestionHelperWorkspace app={app} spec={spec} />
-      ) : app.slug === "ai-invention-lab" ? (
-        <InventionLabWorkspace app={app} spec={spec} />
-      ) : app.slug === "picturebook-scene-maker" ? (
-        <PicturebookSceneWorkspace app={app} spec={spec} />
-      ) : (
-        <MvpWorkspace app={app} spec={spec} />
-      )}
+      <Workspace app={app} spec={spec} />
       <Footer />
     </AccessGate>
   );

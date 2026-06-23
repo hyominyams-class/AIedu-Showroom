@@ -11,7 +11,6 @@ import { getMvpSpec } from "@/data/mvp";
 import { versionVisualAsset } from "@/lib/visuals";
 
 const difficulties: Difficulty[] = ["하", "중", "상"];
-const appsPerPage = 8;
 const lightboxDifficultyClass = {
   하: "is-low",
   중: "is-mid",
@@ -22,7 +21,6 @@ export function LibraryClient() {
   const [category, setCategory] = useState("전체");
   const [difficulty, setDifficulty] = useState<Difficulty | "전체">("전체");
   const [query, setQuery] = useState("");
-  const [pageIndex, setPageIndex] = useState(0);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
 
   const filteredApps = useMemo(() => {
@@ -41,11 +39,7 @@ export function LibraryClient() {
     });
   }, [category, difficulty, query]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredApps.length / appsPerPage));
-  const safePageIndex = Math.min(pageIndex, pageCount - 1);
-  const visibleApps = filteredApps.slice(safePageIndex * appsPerPage, safePageIndex * appsPerPage + appsPerPage);
-  const visibleStart = filteredApps.length === 0 ? 0 : safePageIndex * appsPerPage + 1;
-  const visibleEnd = Math.min(filteredApps.length, (safePageIndex + 1) * appsPerPage);
+  const visibleApps = filteredApps;
   const selectedApp = selectedSlug ? filteredApps.find((app) => app.slug === selectedSlug) ?? apps.find((app) => app.slug === selectedSlug) : undefined;
 
   function selectApp(app: AppItem) {
@@ -82,10 +76,7 @@ export function LibraryClient() {
               className="search-input"
               placeholder="앱 이름, 태그, 기술 검색"
               value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setPageIndex(0);
-              }}
+              onChange={(event) => setQuery(event.target.value)}
             />
           </div>
 
@@ -96,10 +87,7 @@ export function LibraryClient() {
                 className={`segmented-button ${difficulty === item ? "is-active" : ""}`}
                 key={item}
                 type="button"
-                onClick={() => {
-                  setDifficulty(item);
-                  setPageIndex(0);
-                }}
+                onClick={() => setDifficulty(item)}
               >
                 {item}
               </button>
@@ -111,10 +99,7 @@ export function LibraryClient() {
           <button
             className={`category-pill ${category === "전체" ? "is-active" : ""}`}
             type="button"
-            onClick={() => {
-              setCategory("전체");
-              setPageIndex(0);
-            }}
+            onClick={() => setCategory("전체")}
           >
             <Layers3 size={16} />
             전체
@@ -124,10 +109,7 @@ export function LibraryClient() {
               className={`category-pill ${category === item ? "is-active" : ""}`}
               key={item}
               type="button"
-              onClick={() => {
-                setCategory(item);
-                setPageIndex(0);
-              }}
+              onClick={() => setCategory(item)}
             >
               {item}
             </button>
@@ -136,7 +118,7 @@ export function LibraryClient() {
 
         <div className="mt-7 flex items-center justify-between gap-4">
           <p className="text-sm font-medium text-[var(--muted)]">
-            {filteredApps.length}개 앱 · {visibleStart}-{visibleEnd}
+            {filteredApps.length}개 앱
           </p>
           <button
             className="button-secondary"
@@ -145,7 +127,6 @@ export function LibraryClient() {
               setCategory("전체");
               setDifficulty("전체");
               setQuery("");
-              setPageIndex(0);
             }}
           >
             전체 보기
@@ -154,33 +135,9 @@ export function LibraryClient() {
 
         <div className="app-card-grid mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {visibleApps.map((app, index) => (
-            <AppCard app={app} key={app.slug} priority={index < appsPerPage} onSelect={selectApp} />
+            <AppCard app={app} key={app.slug} priority={index < 8} onSelect={selectApp} />
           ))}
         </div>
-
-        {filteredApps.length > appsPerPage ? (
-          <div className="library-pagination" aria-label="앱 목록 페이지">
-            <button
-              className="button-secondary"
-              type="button"
-              onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
-              disabled={safePageIndex === 0}
-            >
-              <ArrowLeft size={18} />
-              이전
-            </button>
-            <span>{safePageIndex + 1} / {pageCount}</span>
-            <button
-              className="button-secondary"
-              type="button"
-              onClick={() => setPageIndex((current) => Math.min(pageCount - 1, current + 1))}
-              disabled={safePageIndex === pageCount - 1}
-            >
-              다음
-              <ArrowRight size={18} />
-            </button>
-          </div>
-        ) : null}
 
         {filteredApps.length === 0 ? (
           <div className="panel mt-8 p-8 text-center">
@@ -234,14 +191,14 @@ function AppLightbox({ app, onClose, onPrevious, onNext }: AppLightboxProps) {
         <div className="lightbox">
           <Dialog.Overlay className="lightbox-scrim" />
           <Dialog.Content className="lightbox-panel showroom-lightbox-panel">
-            <section className="lightbox-media showroom-lightbox-media" aria-label={`${app.title} 미리보기`}>
+            <section className="lightbox-media showroom-lightbox-media" style={{ position: "relative" }} aria-label={`${app.title} 미리보기`}>
               <Image
                 src={versionVisualAsset(activeImage)}
                 alt={`${app.title} 미리보기 ${imageIndex + 1}`}
                 fill
                 sizes="(min-width: 1024px) 52vw, 100vw"
                 className="object-cover"
-                priority
+                preload
               />
               {hasGallery ? (
                 <div className="lightbox-image-controls" aria-label="미리보기 이미지">

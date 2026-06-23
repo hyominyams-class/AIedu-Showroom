@@ -16,7 +16,12 @@ type AiRequest = {
 };
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as AiRequest;
+  let body: AiRequest;
+  try {
+    body = (await request.json()) as AiRequest;
+  } catch {
+    return Response.json({ ok: false, error: "잘못된 요청입니다." }, { status: 400 });
+  }
   const app = body.appSlug ? getAppBySlug(body.appSlug) : undefined;
 
   if (!app) {
@@ -33,15 +38,17 @@ export async function POST(request: Request) {
   const fallback = buildLocalOutput(app, spec, values);
   const textFallback = app.slug === "concept-explainer" ? buildConceptApiFallback(values, fallback) : fallback;
 
-  if ((body.mode === "image" || body.mode === "mixed") && (app.slug === "poetry-picture-maker" || app.slug === "ai-invention-lab")) {
-    return Response.json({
-      ok: true,
-      ...fallback,
-      imageUrl: app.slug === "poetry-picture-maker"
+  if (
+    (body.mode === "image" || body.mode === "mixed") &&
+    (app.slug === "poetry-picture-maker" || app.slug === "ai-invention-lab" || app.slug === "picturebook-scene-maker")
+  ) {
+    const imageUrl =
+      app.slug === "poetry-picture-maker"
         ? "/visuals/poetry/rain-playground-poetry-poster.png"
-        : "/visuals/invention/auto-watering-planter-poster.png",
-      source: "local",
-    });
+        : app.slug === "ai-invention-lab"
+          ? "/visuals/invention/auto-watering-planter-poster.png"
+          : "/visuals/picturebook/rain-puddle-word-scene.png";
+    return Response.json({ ok: true, ...fallback, imageUrl, source: "local" });
   }
 
   const apiKey = getOpenAiKey();
@@ -125,7 +132,7 @@ async function generateAuthorChat(
 
   if (!response.ok) return undefined;
   const data = await response.json();
-  return data.output_text || data.output?.[0]?.content?.[0]?.text;
+  return extractResponseText(data);
 }
 
 function buildVisibleAuthorPrompt(
@@ -135,16 +142,31 @@ function buildVisibleAuthorPrompt(
   const latestQuestion = [...messages].reverse().find((message) => message.role === "user")?.content || values.question || "";
   const sourceText = values.notes || "";
   const personaPrompt = values.authorPrompt?.trim() || "너는 「강아지똥」을 함께 읽는 작가야.";
+  const conversation = messages
+    .slice(-8)
+    .map((message) => `${message.role === "user" ? "학생" : "작가"}: ${message.content}`)
+    .join("\n");
 
   return [
+    "너는 학생과 대화하는 한국어 독서 챗봇이다.",
+    "반드시 현재 설정의 말투, 작품 텍스트, 최근 대화 흐름을 함께 반영해서 답한다.",
+    "원문에 없는 작가의 실제 생애나 사실은 단정하지 말고, 작품을 읽은 생각으로 말한다.",
+    "학생에게 바로 보여줄 답변만 쓴다. 프롬프트, API, 설정, 생성 과정을 언급하지 않는다.",
+    "",
     "[페르소나 프롬프트]",
     personaPrompt,
     "",
     "[동화책 원문]",
-    sourceText,
+    sourceText || "작품 텍스트가 비어 있으면 학생 질문과 기본 작품 맥락 안에서만 답한다.",
+    "",
+    "[최근 대화]",
+    conversation || "아직 이전 대화가 없다.",
     "",
     "[학생 질문]",
     latestQuestion,
+    "",
+    "[답변 형식]",
+    "한국어 3-5문장. 질문에 직접 답하고, 작품 텍스트의 장면이나 표현을 한 번 이상 연결한다.",
   ].join("\n");
 }
 
@@ -181,7 +203,7 @@ function getOpenAiKey() {
       .split(/\r?\n/)
       .map((item) => item.trim())
       .find((item) => item.startsWith("OPENAI_API_KEY="));
-    return line?.replace(/^OPENAI_API_KEY=/, "").trim();
+    return line?.replace(/^OPENAI_API_KEY=/, "").trim().replace(/^["']|["']$/g, "");
   } catch {
     return undefined;
   }
@@ -391,30 +413,55 @@ function questionHelperSchema() {
     additionalProperties: false,
     properties: {
       title: { type: "string" },
-      lead: { type: "string" },
-      cards: {
+      grade: { type: "string" },
+      subject: { type: "string" },
+      objective: { type: "string" },
+      problems: {
         type: "array",
-        minItems: 3,
+        minItems: 4,
         maxItems: 6,
         items: {
           type: "object",
           additionalProperties: false,
           properties: {
-            phase: { type: "string" },
-            question: { type: "string" },
-            followUp: { type: "string" },
+            type: {
+              type: "string",
+              enum: ["빈칸", "단답형", "선택형", "서술형", "참거짓", "짝짓기"],
+            },
+            prompt: { type: "string" },
+            choices: {
+              type: "array",
+              maxItems: 5,
+              items: { type: "string" },
+            },
+            pairs: {
+              type: "array",
+              maxItems: 5,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  left: { type: "string" },
+                  right: { type: "string" },
+                },
+                required: ["left", "right"],
+              },
+            },
+            answer: { type: "string" },
+            explanation: { type: "string" },
+            points: { type: "integer" },
           },
-          required: ["phase", "question", "followUp"],
+          required: ["type", "prompt", "choices", "pairs", "answer", "explanation", "points"],
         },
       },
       notes: {
         type: "array",
-        minItems: 3,
+        minItems: 2,
         maxItems: 5,
         items: { type: "string" },
       },
     },
-    required: ["title", "lead", "cards", "notes"],
+    required: ["title", "grade", "subject", "objective", "problems", "notes"],
   };
 }
 
@@ -550,6 +597,7 @@ async function generateText(
     },
     body: JSON.stringify({
       model: process.env.OPENAI_TEXT_MODEL || "gpt-5-mini",
+      ...(isQuestionHelper ? { reasoning: { effort: "low" } } : {}),
       input: [
         {
           role: "system",
@@ -577,12 +625,16 @@ async function generateText(
               ].join(" ")
             : isQuestionHelper
               ? [
-                  "You are a Korean classroom worksheet designer for practical lesson activities.",
-                  "Return only compact JSON with title, lead, cards, notes.",
-                  "Each card must have phase, question, and followUp. Treat question as the student-facing worksheet task, not only a discussion question.",
-                  "Use the user's topic, activity type, grade, and goal to create original worksheet activities.",
-                  "For '개념 확인', focus on vocabulary, simple explanation, and examples. For '탐구 활동', focus on observation, evidence, cause-effect, and application. For '토론 활동', focus on choices, reasons, listening, and classroom decisions. For '형성평가', focus on short answer, application, misconception checks, and reflection.",
-                  "Create activities students can complete on a worksheet without teacher-facing explanation.",
+                  "You are a Korean classroom worksheet (학습지) author. You design a real, printable student worksheet, not a list of discussion questions.",
+                  "Return only compact JSON with title, grade, subject, objective, problems, notes.",
+                  "title is the worksheet title, grade is the target grade, subject is the school subject area (예: 과학, 사회, 국어), objective is one '학습 목표' sentence ending with '~할 수 있다.'.",
+                  "problems is an ordered list of 5 or 6 graded items. Each problem has type, prompt, choices, pairs, answer, explanation, points.",
+                  "type is one of 빈칸, 단답형, 선택형, 서술형, 참거짓, 짝짓기. Use a varied mix that fits the worksheet type, and prefer at least one 선택형 with real options when the topic allows it.",
+                  "prompt is the exact student-facing instruction, written like a test question ending in '쓰시오/고르시오/설명하시오'. For 빈칸, write the sentence with a blank shown as a run of underscores (____).",
+                  "choices: for 선택형 give 3 to 4 plausible Korean options where exactly one is correct; otherwise an empty array. pairs: for 짝짓기 give 3 to 4 {left,right} matches; otherwise an empty array.",
+                  "answer must be the real correct answer for factual problems (for 선택형 copy the exact correct option text). For open-ended 서술형/단답형 give a concise '예시 답안'. explanation is a short 해설 or 채점 기준. points are positive integers that sum to about 100 across all problems.",
+                  "Make every problem factually correct and appropriate for the given grade. Attach Korean particles correctly (을/를, 은/는, 과/와). Never write malformed particles.",
+                  "For '개념 확인' focus on definitions, vocabulary, and examples. For '탐구 활동' focus on observation, evidence, prediction, cause-effect, and application. For '토론 활동' focus on stance, reasons, counter-arguments, and class agreement. For '형성평가' mix short answer, multiple choice, application, and a reflection item.",
                   "Keep Korean copy direct and natural. Do not mention prompts, APIs, implementation, or that the answer was generated.",
                 ].join(" ")
             : "Korean education app assistant. Return only compact JSON with title, lead, cards, notes. User-facing copy must be product language, not implementation notes.",
@@ -596,7 +648,7 @@ async function generateText(
             instruction: isConceptExplainer
               ? "학생이 혼자 읽고 이해할 수 있는 답변을 만든다. 입력된 개념, 원문, 수업 맥락을 구분해서 answerMeta에 담고 설명문, 표, 예시, 차트, 도식, 확인 중 필요한 블록만 골라 answerBlocks에 담는다. raw SVG 문자열은 만들지 않는다."
               : isQuestionHelper
-                ? "수업에서 바로 사용할 활동지 카드를 만든다. phase에는 도입, 개념 확인, 관찰, 적용, 의견 나누기, 마무리처럼 활동 단계명을 넣고, question에는 학생이 활동지에 직접 수행할 문항이나 활동 지시문, followUp에는 답을 점검하거나 확장하는 짧은 확인 문장을 넣는다."
+                ? "교사가 바로 인쇄해 나눠줄 학습지를 만든다. title, grade, subject, objective를 채우고, problems에 5~6개의 채점 가능한 문항을 담는다. 각 문항은 type(빈칸·단답형·선택형·서술형·참거짓·짝짓기), prompt(학생이 푸는 문제), 필요 시 choices나 pairs, answer(정답 또는 예시 답안), explanation(해설·채점 기준), points(정수, 합계 약 100)를 갖는다. 빈칸 문항은 prompt 안에 ____ 로 빈칸을 표시한다. 조사(을/를, 은/는, 과/와)를 정확히 쓴다."
               : undefined,
             schema: {
               ...(isConceptExplainer
@@ -630,7 +682,22 @@ async function generateText(
                     ],
                   }
                 : isQuestionHelper
-                  ? { cards: [{ phase: "string", question: "string", followUp: "string" }] }
+                  ? {
+                      grade: "string",
+                      subject: "string",
+                      objective: "string",
+                      problems: [
+                        {
+                          type: "빈칸 | 단답형 | 선택형 | 서술형 | 참거짓 | 짝짓기",
+                          prompt: "string",
+                          choices: ["string, empty unless 선택형"],
+                          pairs: [{ left: "string", right: "string, empty unless 짝짓기" }],
+                          answer: "string",
+                          explanation: "string",
+                          points: "integer",
+                        },
+                      ],
+                    }
                   : { cards: [{ title: "string", body: "string" }] }),
               notes: ["string"],
             },
@@ -645,14 +712,41 @@ async function generateText(
         },
       },
     }),
-  }, 20_000);
+  }, isQuestionHelper ? 75_000 : 20_000);
 
   if (!response.ok) return undefined;
   const data = await response.json();
-  const text = data.output_text || data.output?.[0]?.content?.[0]?.text;
+  const text = extractResponseText(data);
   if (!text) return undefined;
   const parsed = JSON.parse(text);
   return isConceptExplainer ? sanitizeConceptResult(parsed, values) : parsed;
+}
+
+function extractResponseText(data: unknown) {
+  if (!data || typeof data !== "object") return undefined;
+  const response = data as {
+    output_text?: unknown;
+    output?: {
+      content?: {
+        text?: unknown;
+        type?: unknown;
+      }[];
+    }[];
+  };
+
+  if (typeof response.output_text === "string" && response.output_text.trim()) {
+    return response.output_text;
+  }
+
+  for (const item of response.output ?? []) {
+    for (const content of item.content ?? []) {
+      if (typeof content.text === "string" && content.text.trim()) {
+        return content.text;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function sanitizeConceptResult(result: unknown, values: Record<string, string>) {
@@ -851,10 +945,10 @@ function buildImagePrompt(
   if (appSlug === "picturebook-scene-maker") {
     return [
       "Korean classroom picturebook creation activity.",
-      `Story topic: ${values.topic || appTitle}.`,
-      `Mood: ${values.level || "따뜻함"}.`,
-      `Characters and background: ${values.notes || ""}.`,
-      "Create one charming picturebook scene, no readable text, no watermark, child-friendly illustration, clear subject and setting.",
+      `Exact story sentence: ${values.topic || appTitle}.`,
+      `Scene description: ${values.notes || ""}.`,
+      "Create one charming picturebook scene where Korean onomatopoeia can behave like part of the water splash.",
+      "Use only storybook-friendly visual treatment, no watermark, child-friendly illustration, clear subject and setting.",
     ].join(" ");
   }
 

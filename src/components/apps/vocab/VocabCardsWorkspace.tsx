@@ -43,6 +43,7 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
   const knownCount = cards.filter((card) => card.known).length;
   const progress = cards.length ? Math.round((knownCount / cards.length) * 100) : 0;
   const reviewCards = useMemo(() => cards.filter((card) => !card.known), [cards]);
+  const allKnown = cards.length > 0 && knownCount === cards.length;
 
   function move(direction: -1 | 1) {
     if (!cards.length) return;
@@ -67,7 +68,7 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
       word: cleanWord,
       meaning: cleanMeaning,
       example: example.trim() || `${cleanWord} is today's word.`,
-      hint: cleanMeaning.slice(0, 2) || "새 단어",
+      hint: "새 단어",
       known: false,
     };
     setCards((current) => [nextCard, ...current]);
@@ -78,8 +79,33 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
     setExample("");
   }
 
+  function handleKnownButton() {
+    const card = activeCard;
+    if (!card) return;
+    const wasUnknown = !card.known;
+    toggleKnown(card.id);
+    if (wasUnknown && cards.length > 1) {
+      move(1);
+    } else {
+      setFlipped(false);
+    }
+  }
+
+  function restartReview() {
+    setCards((current) => current.map((card) => ({ ...card, known: false })));
+    setActiveIndex(0);
+    setFlipped(false);
+  }
+
   function shuffleCards() {
-    setCards((current) => [...current].reverse());
+    setCards((current) => {
+      const next = [...current];
+      for (let index = next.length - 1; index > 0; index -= 1) {
+        const swap = Math.floor(Math.random() * (index + 1));
+        [next[index], next[swap]] = [next[swap], next[index]];
+      }
+      return next;
+    });
     setActiveIndex(0);
     setFlipped(false);
   }
@@ -127,7 +153,7 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
               width={112}
               height={112}
               className="vocab-mascot-image"
-              priority
+              preload
               unoptimized
             />
             <div>
@@ -152,12 +178,6 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
             <Plus size={18} />
             단어 추가
           </button>
-
-          <div className="vocab-progress-card">
-            <span>암기율</span>
-            <strong>{progress}%</strong>
-            <p>{knownCount}/{cards.length}개 암기</p>
-          </div>
         </form>
 
         <section className="vocab-card-panel" aria-label="영단어 암기 카드">
@@ -167,27 +187,56 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
             <span>{activeCard.hint}</span>
           </div>
 
-          <button className={`vocab-flashcard ${flipped ? "is-flipped" : ""}`} type="button" onClick={() => setFlipped((current) => !current)}>
-            <span>{flipped ? "뜻" : "단어"}</span>
-            <strong>{flipped ? activeCard.meaning : activeCard.word}</strong>
-            <p>{flipped ? activeCard.example : `${activeCard.hint} 힌트를 보고 뜻을 떠올려보세요.`}</p>
-            <small>눌러서 뒤집기</small>
-          </button>
+          {allKnown ? (
+            <div className="vocab-complete" role="status">
+              <span className="vocab-complete-badge">
+                <Check size={24} />
+              </span>
+              <strong>{cards.length}개 단어를 모두 외웠어요!</strong>
+              <p>복습을 다시 시작하거나 단어를 추가해 이어가세요.</p>
+              <button className="button-primary justify-center" type="button" onClick={restartReview}>
+                <RotateCcw size={18} />
+                복습 다시 시작
+              </button>
+            </div>
+          ) : (
+            <>
+              <button className="vocab-flip-card" data-flipped={flipped} type="button" aria-pressed={flipped} onClick={() => setFlipped((current) => !current)}>
+                <span className="vocab-flip-inner">
+                  <span className="vocab-flip-face vocab-flip-front">
+                    <span className="vocab-flip-tag">단어</span>
+                    <strong>{activeCard.word}</strong>
+                    <p>{activeCard.hint} 힌트를 보고 뜻을 떠올려보세요.</p>
+                    <small>눌러서 뜻 보기</small>
+                  </span>
+                  <span className="vocab-flip-face vocab-flip-back">
+                    <span className="vocab-flip-tag">뜻</span>
+                    <strong>{activeCard.meaning}</strong>
+                    <p>{activeCard.example}</p>
+                    <small>눌러서 단어 보기</small>
+                  </span>
+                </span>
+              </button>
 
-          <div className="vocab-control-row">
-            <button className="button-secondary" type="button" onClick={() => move(-1)}>
-              <ChevronLeft size={18} />
-              이전
-            </button>
-            <button className="button-primary" type="button" onClick={() => toggleKnown(activeCard.id)}>
-              <Check size={18} />
-              {activeCard.known ? "다시 복습" : "외웠어요"}
-            </button>
-            <button className="button-secondary" type="button" onClick={() => move(1)}>
-              다음
-              <ChevronRight size={18} />
-            </button>
-          </div>
+              <div className="vocab-control-row">
+                <button className="button-secondary" type="button" onClick={() => move(-1)}>
+                  <ChevronLeft size={18} />
+                  이전
+                </button>
+                <button className="button-primary" type="button" onClick={handleKnownButton} disabled={!flipped && !activeCard.known}>
+                  <Check size={18} />
+                  {activeCard.known ? "다시 복습" : "외웠어요"}
+                </button>
+                <button className="button-secondary" type="button" onClick={() => move(1)}>
+                  다음
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+              {!flipped && !activeCard.known ? (
+                <p className="vocab-hint-note">뜻을 확인한 뒤 외웠는지 표시할 수 있어요.</p>
+              ) : null}
+            </>
+          )}
 
           <div className="vocab-tool-row">
             <button className="button-secondary" type="button" onClick={shuffleCards}>
@@ -200,7 +249,7 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
             </button>
           </div>
 
-          <div className="vocab-list" aria-label="복습 단어">
+          <div className="vocab-list" aria-label="단어 목록">
             {cards.map((card, index) => (
               <button
                 className={cards[activeIndex]?.id === card.id ? "is-active" : ""}
