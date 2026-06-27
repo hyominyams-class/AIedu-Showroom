@@ -38,6 +38,7 @@ export type AppItem = {
   thumbnail: string;
   previewImages: string[];
   tags: string[];
+  keywords: string[];
   targetGrade: string;
   difficulty: Difficulty;
   buildBasis: string;
@@ -66,6 +67,7 @@ const allApps: AppItem[] = [
       "/visuals/class-chatbot-hub-preview.png",
     ],
     tags: ["강아지똥", "작가 대화", "독서 질문"],
+    keywords: ["작가 페르소나 챗봇", "작품 텍스트 기반", "세션 대화 기억", "말투 모사"],
     targetGrade: "초3-중1",
     difficulty: "중",
     buildBasis: "작품 텍스트와 한 세션 대화",
@@ -133,6 +135,7 @@ const allApps: AppItem[] = [
       "/visuals/class-timer-station-preview.png",
     ],
     tags: ["타이머", "모둠 활동", "발표 순서"],
+    keywords: ["단계별 타이머", "모둠 발표 순서", "교실 화면 보드", "준비·발표·정리"],
     targetGrade: "초3-중3",
     difficulty: "하",
     buildBasis: "교실 화면 타이머",
@@ -200,8 +203,9 @@ const allApps: AppItem[] = [
       "/visuals/ai-question-helper-preview.png",
     ],
     tags: ["단어 설명", "문장 풀이", "학습 질문"],
+    keywords: ["맥락 기반 쉬운 설명", "학년 눈높이", "원문+질문 입력", "AI 텍스트"],
     targetGrade: "초3-중3",
-    difficulty: "하",
+    difficulty: "중",
     buildBasis: "학생 질문과 수업 맥락",
     lessonUse: "수업 중 단어와 문장 이해",
     demoType: "즉시 생성형",
@@ -273,6 +277,7 @@ const allApps: AppItem[] = [
       "/visuals/quiz-card-builder-preview.png",
     ],
     tags: ["영단어", "암기 카드", "복습"],
+    keywords: ["플래시카드", "앞뒤 뒤집기", "단어·뜻·예문", "암기 체크"],
     targetGrade: "초3-중3",
     difficulty: "하",
     buildBasis: "브라우저에서 바로 실행",
@@ -340,6 +345,7 @@ const allApps: AppItem[] = [
       "/visuals/landing-previews/addition-card-match-game.png",
     ],
     tags: ["덧셈", "카드뒤집기", "1-2학년"],
+    keywords: ["메모리 카드게임", "뒤집어 짝맞추기", "한 자리 덧셈", "8쌍 매칭"],
     targetGrade: "초1-초2",
     difficulty: "하",
     buildBasis: "브라우저에서 바로 실행",
@@ -407,8 +413,9 @@ const allApps: AppItem[] = [
       "/visuals/landing-previews/history-typing-rain.png",
     ],
     tags: ["역사", "타자게임", "핵심어"],
+    keywords: ["타자 게임", "낙하하는 핵심어", "콤보 점수", "역사 복습"],
     targetGrade: "초5-중3",
-    difficulty: "중",
+    difficulty: "하",
     buildBasis: "브라우저에서 바로 실행",
     lessonUse: "역사 핵심어 복습과 집중 활동",
     demoType: "타자 아케이드",
@@ -461,6 +468,142 @@ const allApps: AppItem[] = [
     },
   },
   {
+    slug: "neon-rhythm-runner",
+    title: "네온 리듬 러너",
+    category: "리듬 게임",
+    shortDescription:
+      "비트에 맞춰 점프하고 슬라이드하며 네온 트랙을 질주하는 횡스크롤 러너입니다.",
+    longDescription:
+      "자동으로 달리는 러너가 비트에 맞춰 다가오는 네온 장애물을 점프와 슬라이드로 피하고, 박자에 놓인 네온 오브를 모아 콤보를 쌓습니다. 달릴수록 속도가 빨라지고, 라이프 3개가 모두 닳으면 게임이 끝납니다.",
+    thumbnail: "/visuals/generated-thumbnails/neon-rhythm-runner.png",
+    previewImages: [
+      "/visuals/generated-thumbnails/neon-rhythm-runner.png",
+      "/visuals/landing-previews/neon-rhythm-runner.png",
+    ],
+    tags: ["리듬", "러너", "반응 속도"],
+    keywords: ["횡스크롤 러너", "네온 리듬 게임", "점프·슬라이드 회피", "비트 동기 오브"],
+    targetGrade: "초4-고2",
+    difficulty: "하",
+    buildBasis: "브라우저에서 바로 실행",
+    lessonUse: "반응 속도와 리듬감, 활동 전환 환기",
+    demoType: "리듬 러너 게임",
+    route: "/apps/neon-rhythm-runner",
+    actionLabel: "러너 시작",
+    fields: [
+      {
+        id: "topic",
+        label: "트랙 이름",
+        type: "text",
+        placeholder: "예: 네온 시티",
+      },
+      {
+        id: "level",
+        label: "시작 속도",
+        type: "select",
+        options: ["느리게", "보통", "빠르게"],
+      },
+      {
+        id: "notes",
+        label: "조작 안내",
+        type: "textarea",
+        placeholder: "점프와 슬라이드로 장애물을 피하고 오브를 모아요.",
+      },
+    ],
+    loadingMessages: [
+      "네온 트랙을 켜는 중입니다.",
+      "비트를 맞추는 중입니다.",
+      "러너를 출발선에 세우는 중입니다.",
+    ],
+    mockResult: {
+      title: "네온 리듬 러너",
+      summary:
+        "비트에 맞춰 장애물을 피하고 오브를 모아 점수와 콤보를 쌓는 러너 게임입니다.",
+      highlights: ["점프·슬라이드", "비트 오브 수집", "콤보 점수"],
+      cards: [
+        {
+          title: "점프와 슬라이드",
+          body: "낮은 장애물은 점프로, 높은 장애물은 슬라이드로 피합니다.",
+        },
+        {
+          title: "비트 오브",
+          body: "박자에 맞춰 놓인 네온 오브를 모아 콤보를 올립니다.",
+        },
+        {
+          title: "거리 기록",
+          body: "달린 거리와 점수, 최고 콤보로 기록을 확인합니다.",
+        },
+      ],
+    },
+  },
+  {
+    slug: "liberation-text-adventure",
+    title: "1919, 어둠을 넘어",
+    category: "역사",
+    shortDescription:
+      "일제강점기를 배경으로 선택에 따라 이야기가 갈라지는 역사 어드벤처입니다.",
+    longDescription:
+      "1919년 경성, 학생이 된 당신은 거리에 번지는 만세의 물결 앞에서 결정을 내립니다. 격문을 나르고 태극기를 준비하며, 선택에 따라 이야기와 결말이 달라집니다. 오래된 고문서를 읽어 내려가듯 장면이 한 줄씩 펼쳐집니다.",
+    thumbnail: "/visuals/generated-thumbnails/liberation-text-adventure.png",
+    previewImages: [
+      "/visuals/generated-thumbnails/liberation-text-adventure.png",
+      "/visuals/landing-previews/liberation-text-adventure.png",
+    ],
+    tags: ["일제강점기", "3·1운동", "선택형 서사"],
+    keywords: ["텍스트 어드벤처", "분기 선택형 서사", "일제강점기 3·1운동", "여러 결말"],
+    targetGrade: "초5-고2",
+    difficulty: "하",
+    buildBasis: "브라우저에서 바로 실행",
+    lessonUse: "역사적 사건 몰입과 선택의 의미 탐구",
+    demoType: "텍스트 어드벤처",
+    route: "/apps/liberation-text-adventure",
+    actionLabel: "이야기 시작",
+    fields: [
+      {
+        id: "topic",
+        label: "주인공 이름",
+        type: "text",
+        placeholder: "예: 정아",
+      },
+      {
+        id: "level",
+        label: "이야기 분량",
+        type: "select",
+        options: ["짧게", "보통", "길게"],
+      },
+      {
+        id: "notes",
+        label: "배경 안내",
+        type: "textarea",
+        placeholder: "1919년 경성, 만세 운동이 거리에 번지는 봄입니다.",
+      },
+    ],
+    loadingMessages: [
+      "오래된 기록을 펼치는 중입니다.",
+      "1919년 경성으로 들어가는 중입니다.",
+      "첫 장면을 여는 중입니다.",
+    ],
+    mockResult: {
+      title: "역사 어드벤처",
+      summary:
+        "선택에 따라 이야기와 결말이 달라지는 일제강점기 역사 어드벤처입니다.",
+      highlights: ["분기 선택", "여러 결말", "역사 배경"],
+      cards: [
+        {
+          title: "선택",
+          body: "장면마다 주어진 선택지가 이야기의 방향을 바꿉니다.",
+        },
+        {
+          title: "결말",
+          body: "용기와 신중함의 선택이 서로 다른 결말로 이어집니다.",
+        },
+        {
+          title: "역사",
+          body: "3·1 운동과 독립선언서 등 실제 역사를 바탕으로 합니다.",
+        },
+      ],
+    },
+  },
+  {
     slug: "picturebook-scene-maker",
     title: "그림책 장면 제작기",
     category: "AI 이미지",
@@ -475,8 +618,9 @@ const allApps: AppItem[] = [
       "/visuals/picturebook-scene-maker-preview.png",
     ],
     tags: ["이미지 생성", "국어", "창작"],
+    keywords: ["AI 장면 이미지", "주제·분위기·인물 입력", "그림책 문장", "글자 렌더링"],
     targetGrade: "초2-중1",
-    difficulty: "중",
+    difficulty: "상",
     buildBasis: "텍스트와 장면 묘사",
     lessonUse: "이야기 쓰기와 장면 상상",
     demoType: "이미지 생성형",
@@ -536,8 +680,9 @@ const allApps: AppItem[] = [
       "/visuals/generated-thumbnails/poetry-picture-maker.png",
     ],
     tags: ["시화", "이미지 생성", "문학"],
+    keywords: ["시→장면 이미지", "시+묘사 입력", "분위기 반영", "AI 그림"],
     targetGrade: "초4-고2",
-    difficulty: "중",
+    difficulty: "상",
     buildBasis: "시 문장과 장면 묘사",
     lessonUse: "시 감상과 장면 상상 표현",
     demoType: "이미지 생성형",
@@ -609,6 +754,7 @@ const allApps: AppItem[] = [
       "/visuals/ai-question-helper-detail-preview.png",
     ],
     tags: ["학습지", "문항 생성", "정답 해설"],
+    keywords: ["학습지 자동 생성", "학년·유형 선택", "문항+정답·해설", "형성평가"],
     targetGrade: "초3-고2",
     difficulty: "중",
     buildBasis: "수업 주제와 학년·유형",
@@ -682,8 +828,9 @@ const allApps: AppItem[] = [
       "/visuals/invention/auto-watering-planter-balcony.png",
     ],
     tags: ["발명", "이미지 생성", "프로젝트"],
+    keywords: ["발명 발표 포스터", "아이디어 입력", "사용 장면 이미지", "AI 그림"],
     targetGrade: "초5-중3",
-    difficulty: "중",
+    difficulty: "상",
     buildBasis: "스케치와 발명 아이디어",
     lessonUse: "메이커 수업과 프로젝트 발표",
     demoType: "이미지 생성형",
@@ -748,8 +895,9 @@ const allApps: AppItem[] = [
       "/visuals/landing-previews/practical-consumer-mission.png",
     ],
     tags: ["장보기", "합리적 소비", "예산"],
+    keywords: ["예산 장보기 시뮬", "필요/욕구 판단", "소비 점수", "선택형 미션"],
     targetGrade: "초5-중1",
-    difficulty: "중",
+    difficulty: "하",
     buildBasis: "별도 웹앱 링크",
     lessonUse: "실과 소비 생활과 예산 선택",
     demoType: "외부 링크",
@@ -793,6 +941,7 @@ const allApps: AppItem[] = [
       "/visuals/landing-previews/ai-catchmind.png",
     ],
     tags: ["그림 퀴즈", "팔레트", "AI 추측"],
+    keywords: ["그림 퀴즈", "팔레트 드로잉", "AI 그림 추측", "제한시간 점수"],
     targetGrade: "초3-중3",
     difficulty: "중",
     buildBasis: "별도 웹앱 링크",
@@ -838,6 +987,7 @@ const allApps: AppItem[] = [
       "/visuals/landing-previews/class-game-management.png",
     ],
     tags: ["학급 코인", "문제 풀이", "투자 저축"],
+    keywords: ["학급 경제 게임", "문제풀이 보상", "코인·투자·저축", "보상 대시보드"],
     targetGrade: "초4-중2",
     difficulty: "상",
     buildBasis: "별도 웹앱 링크",
@@ -883,8 +1033,9 @@ const allApps: AppItem[] = [
       "/visuals/landing-previews/smile-question-class.png",
     ],
     tags: ["질문 만들기", "AI 채점", "스마일"],
+    keywords: ["질문 만들기 훈련", "AI 질문 평가", "점수+개선 피드백", "탐구 질문"],
     targetGrade: "초4-고2",
-    difficulty: "상",
+    difficulty: "중",
     buildBasis: "별도 웹앱 링크",
     lessonUse: "질문 만들기와 탐구 질문 개선",
     demoType: "외부 링크",
@@ -921,7 +1072,7 @@ export const apps: AppItem[] = allApps;
 export const difficultyLabels: Record<Difficulty, string> = {
   하: "바로 실행형",
   중: "AI 생성형",
-  상: "외부 연동형",
+  상: "심화 기능형",
 };
 
 export const categories = Array.from(new Set(apps.map((app) => app.category)));

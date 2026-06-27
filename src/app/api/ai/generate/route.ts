@@ -15,6 +15,18 @@ type AiRequest = {
   }[];
 };
 
+export const maxDuration = 180;
+
+const AI_TIMEOUT_MS = {
+  authorChat: 60_000,
+  text: 60_000,
+  concept: 90_000,
+  questionHelper: 120_000,
+  image: 120_000,
+  longImage: 180_000,
+  imageEdit: 120_000,
+} as const;
+
 export async function POST(request: Request) {
   let body: AiRequest;
   try {
@@ -67,7 +79,8 @@ export async function POST(request: Request) {
         message: message || fallbackMessage,
         source: message ? "live" : "fallback",
       });
-    } catch {
+    } catch (error) {
+      logAiFallback("author-chat", error);
       return Response.json({ ok: true, message: fallbackMessage, source: "fallback" });
     }
   }
@@ -98,9 +111,15 @@ export async function POST(request: Request) {
       ...text,
       source: text ? "live" : "fallback",
     });
-  } catch {
+  } catch (error) {
+    logAiFallback(app.slug, error);
     return Response.json({ ok: true, ...textFallback, source: "fallback" });
   }
+}
+
+function logAiFallback(scope: string, error: unknown) {
+  const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  console.error(`[ai/generate] ${scope} fell back to local output. ${message}`);
 }
 
 async function generateAuthorChat(
@@ -128,7 +147,7 @@ async function generateAuthorChat(
         },
       ],
     }),
-  }, 18_000);
+  }, AI_TIMEOUT_MS.authorChat);
 
   if (!response.ok) return undefined;
   const data = await response.json();
@@ -712,7 +731,7 @@ async function generateText(
         },
       },
     }),
-  }, isQuestionHelper ? 75_000 : 20_000);
+  }, getTextTimeoutMs(appSlug));
 
   if (!response.ok) return undefined;
   const data = await response.json();
@@ -720,6 +739,12 @@ async function generateText(
   if (!text) return undefined;
   const parsed = JSON.parse(text);
   return isConceptExplainer ? sanitizeConceptResult(parsed, values) : parsed;
+}
+
+function getTextTimeoutMs(appSlug: string) {
+  if (appSlug === "ai-question-helper") return AI_TIMEOUT_MS.questionHelper;
+  if (appSlug === "concept-explainer") return AI_TIMEOUT_MS.concept;
+  return AI_TIMEOUT_MS.text;
 }
 
 function extractResponseText(data: unknown) {
@@ -830,7 +855,7 @@ async function generateImage(
       quality: appSlug === "poetry-picture-maker" ? "high" : "medium",
       n: 1,
     }),
-  }, appSlug === "poetry-picture-maker" ? 130_000 : 45_000);
+  }, appSlug === "poetry-picture-maker" ? AI_TIMEOUT_MS.longImage : AI_TIMEOUT_MS.image);
 
   if (!response.ok) return undefined;
   const data = await response.json();
@@ -862,7 +887,7 @@ async function generateImageFromReference(
       Authorization: `Bearer ${apiKey}`,
     },
     body: form,
-  }, 60_000);
+  }, AI_TIMEOUT_MS.imageEdit);
 
   if (!response.ok) return undefined;
   const data = await response.json();

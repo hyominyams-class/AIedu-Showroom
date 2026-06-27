@@ -247,8 +247,8 @@ function AppLightbox({ app, onClose, onPrevious, onNext }: AppLightboxProps) {
                   <dd>{spec?.promise ?? app.shortDescription}</dd>
                 </div>
                 <div>
-                  <dt>산출물</dt>
-                  <dd>{spec?.output ?? app.actionLabel}</dd>
+                  <dt>핵심 키워드</dt>
+                  <dd>{app.keywords.join(" · ")}</dd>
                 </div>
                 <div>
                   <dt>앱 소개</dt>

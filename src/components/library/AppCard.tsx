@@ -54,8 +54,14 @@ export function AppCard({ app, priority = false, onSelect }: AppCardProps) {
           {spec?.promise ?? app.shortDescription}
         </span>
         <span className="app-card-output">
-          <span>{spec ? "산출물" : "링크"}</span>
-          <strong>{spec?.output ?? app.actionLabel}</strong>
+          <span>핵심 키워드</span>
+          <span className="app-card-keyword-row">
+            {app.keywords.slice(0, 4).map((keyword) => (
+              <span className="app-card-keyword" key={keyword}>
+                {keyword}
+              </span>
+            ))}
+          </span>
         </span>
         <span className="app-card-meta">
           <span>{app.buildBasis}</span>

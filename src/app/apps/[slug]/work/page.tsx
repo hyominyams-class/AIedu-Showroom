@@ -5,6 +5,8 @@ import { AdditionCardMatchWorkspace } from "@/components/apps/addition/AdditionC
 import { AuthorChatbotWorkspace } from "@/components/apps/author/AuthorChatbotWorkspace";
 import { ConceptExplainerWorkspace } from "@/components/apps/concept/ConceptExplainerWorkspace";
 import { HistoryTypingGameWorkspace } from "@/components/apps/history/HistoryTypingGameWorkspace";
+import { LiberationAdventureWorkspace } from "@/components/apps/adventure/LiberationAdventureWorkspace";
+import { NeonRhythmRunnerWorkspace } from "@/components/apps/runner/NeonRhythmRunnerWorkspace";
 import { InventionLabWorkspace } from "@/components/apps/invention/InventionLabWorkspace";
 import { PicturebookSceneWorkspace } from "@/components/apps/picturebook/PicturebookSceneWorkspace";
 import { PoetryPictureWorkspace } from "@/components/apps/poetry/PoetryPictureWorkspace";
@@ -32,6 +34,8 @@ const workspaceBySlug: Record<string, WorkspaceComponent> = {
   "english-vocab-cards": VocabCardsWorkspace,
   "addition-card-match-game": AdditionCardMatchWorkspace,
   "history-typing-rain": HistoryTypingGameWorkspace,
+  "neon-rhythm-runner": NeonRhythmRunnerWorkspace,
+  "liberation-text-adventure": LiberationAdventureWorkspace,
   "ai-question-helper": QuestionHelperWorkspace,
   "poetry-picture-maker": PoetryPictureWorkspace,
   "picturebook-scene-maker": PicturebookSceneWorkspace,

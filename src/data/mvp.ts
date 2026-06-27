@@ -15,7 +15,9 @@ export type MvpKind =
   | "portfolio"
   | "map"
   | "report"
-  | "chatbot";
+  | "chatbot"
+  | "runner"
+  | "adventure";
 
 export type MvpSpec = {
   kind: MvpKind;
@@ -124,6 +126,26 @@ export const mvpSpecs: Record<string, MvpSpec> = {
     resultLabel: "학습지",
     storage: "copy",
     liveAi: "text",
+  },
+  "neon-rhythm-runner": {
+    kind: "runner",
+    promise: "비트에 맞춰 달리며 장애물을 피하고 오브를 모읍니다.",
+    output: "거리·점수·콤보 기록",
+    principle: "자동으로 달리는 러너를 점프와 슬라이드로 조작해 비트 장애물을 피합니다.",
+    focus: ["점프", "슬라이드", "비트 오브"],
+    workLabel: "러너 시작",
+    resultLabel: "러너 기록",
+    storage: "local",
+  },
+  "liberation-text-adventure": {
+    kind: "adventure",
+    promise: "선택에 따라 이야기가 갈라지는 역사 어드벤처입니다.",
+    output: "선택 분기와 결말",
+    principle: "1919년 경성을 배경으로 선택지가 이야기와 결말을 바꿉니다.",
+    focus: ["선택", "분기", "결말"],
+    workLabel: "이야기 시작",
+    resultLabel: "이야기 결말",
+    storage: "local",
   },
   "ai-invention-lab": {
     kind: "invention",
