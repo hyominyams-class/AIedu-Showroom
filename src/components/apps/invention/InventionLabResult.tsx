@@ -1,12 +1,14 @@
 "use client";
 
-import { Clipboard, Download, FileImage, ImageDown, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clipboard, Download, FileImage, ImageDown, RotateCcw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
 import { versionVisualAsset } from "@/lib/visuals";
+import { StyleSelect } from "@/components/mvp/StyleSelect";
+import { INVENTION_STYLES, INVENTION_STYLE_OPTIONS, findInventionStyleIndex } from "@/components/apps/invention/inventionStyles";
 import {
   MvpState,
   applyStateToOutput,
@@ -21,37 +23,28 @@ type InventionLabResultProps = {
   spec: MvpSpec;
 };
 
-const INVENTION_IMAGES = [
-  {
-    src: "/visuals/invention/auto-watering-planter-poster.png",
-    title: "발표 포스터",
-    alt: "자동 급수 화분 발명 포스터",
-  },
-  {
-    src: "/visuals/invention/auto-watering-planter-classroom.png",
-    title: "교실 창가",
-    alt: "교실 창가에서 사용하는 자동 급수 화분",
-  },
-  {
-    src: "/visuals/invention/auto-watering-planter-balcony.png",
-    title: "집 베란다",
-    alt: "집 베란다에서 사용하는 자동 급수 화분",
-  },
-];
-
 export function InventionLabResult({ app, spec }: InventionLabResultProps) {
   const [state] = useState<MvpState>(() => loadMvpState(app, spec));
+  const [activeIndex, setActiveIndex] = useState(() => findInventionStyleIndex(state.values.style));
   const [notice, setNotice] = useState("");
   const output = applyStateToOutput(app, spec, state);
   const values = state.values;
   const primary = getPrimary(values, app.title);
-  const posterSrc = output.imageUrl || INVENTION_IMAGES[0].src;
+
+  const active = INVENTION_STYLES[activeIndex];
+  // 포스터 시안은 실제 생성 결과가 있으면 그 이미지를 그대로 보여준다.
+  const activeSrc = activeIndex === 0 ? output.imageUrl || active.src : active.src;
+  const activeHref = activeSrc.startsWith("data:") ? activeSrc : versionVisualAsset(activeSrc);
 
   useEffect(() => {
     if (!notice) return;
     const timeout = window.setTimeout(() => setNotice(""), 1800);
     return () => window.clearTimeout(timeout);
   }, [notice]);
+
+  function moveStyle(delta: number) {
+    setActiveIndex((current) => (current + delta + INVENTION_STYLES.length) % INVENTION_STYLES.length);
+  }
 
   async function copyResult() {
     await navigator.clipboard.writeText(outputToText(output, state));
@@ -84,11 +77,11 @@ export function InventionLabResult({ app, spec }: InventionLabResultProps) {
           </button>
           <a
             className="button-secondary justify-center"
-            href={posterSrc.startsWith("data:") ? posterSrc : versionVisualAsset(posterSrc)}
-            download={`${app.slug}-poster.png`}
+            href={activeHref}
+            download={`${app.slug}-${active.fileSuffix}.png`}
           >
             <ImageDown size={18} />
-            포스터 저장
+            이미지 저장
           </a>
           <Link className="button-secondary" href={`/apps/${app.slug}/work`}>
             <RotateCcw size={18} />
@@ -99,23 +92,45 @@ export function InventionLabResult({ app, spec }: InventionLabResultProps) {
 
       <section className="mvp-result-grid mvp-result-grid-lean invention-result-layout">
         <article className="mvp-result-main invention-result-poster">
-          <div className="invention-gallery">
-            <figure className="invention-gallery-main">
-              <div className="invention-result-image invention-result-image-poster">
-                <Image src={versionVisualAsset(posterSrc)} alt={`${primary} 발명 포스터`} fill preload sizes="(min-width: 960px) 58vw, 100vw" className="object-cover" />
+          <div className="invention-viewer">
+            <div className="invention-viewer-bar">
+              <StyleSelect
+                className="invention-viewer-select"
+                label="이미지 스타일"
+                options={INVENTION_STYLE_OPTIONS}
+                value={active.id}
+                onChange={(id) => setActiveIndex(findInventionStyleIndex(id))}
+              />
+              <div className="invention-viewer-nav">
+                <button aria-label="이전 시안" type="button" onClick={() => moveStyle(-1)}>
+                  <ChevronLeft size={18} />
+                </button>
+                <span>
+                  시안 <strong>{activeIndex + 1}</strong> / {INVENTION_STYLES.length}
+                </span>
+                <button aria-label="다음 시안" type="button" onClick={() => moveStyle(1)}>
+                  <ChevronRight size={18} />
+                </button>
               </div>
-              <figcaption>{INVENTION_IMAGES[0].title}</figcaption>
-            </figure>
-            <div className="invention-gallery-scenes">
-              {INVENTION_IMAGES.slice(1).map((image) => (
-                <figure key={image.src}>
-                  <div className="invention-result-image">
-                    <Image src={versionVisualAsset(image.src)} alt={image.alt} fill sizes="(min-width: 960px) 26vw, 100vw" className="object-cover" />
-                  </div>
-                  <figcaption>{image.title}</figcaption>
-                </figure>
-              ))}
             </div>
+
+            <figure className="invention-viewer-stage">
+              <div className={`invention-viewer-frame is-${active.ratio}`}>
+                <Image
+                  alt={active.alt}
+                  className="object-contain"
+                  fetchPriority="high"
+                  fill
+                  key={active.id}
+                  sizes="(min-width: 960px) 62vw, 100vw"
+                  src={activeHref}
+                />
+              </div>
+              <figcaption>
+                <strong>{active.label}</strong>
+                <span>{active.caption}</span>
+              </figcaption>
+            </figure>
           </div>
 
           <div className="invention-result-extra">

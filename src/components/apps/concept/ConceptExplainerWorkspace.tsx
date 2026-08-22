@@ -1,8 +1,31 @@
 "use client";
 
-import { Clipboard, Lightbulb, Loader2, MessageCircleQuestion, RotateCcw, Search } from "lucide-react";
+import {
+  BarChart3,
+  BookOpen,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  Clipboard,
+  CornerDownRight,
+  HelpCircle,
+  Layers,
+  LayoutGrid,
+  Lightbulb,
+  ListOrdered,
+  Loader2,
+  MessageCircleQuestion,
+  MessageSquareQuote,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Table2,
+  Workflow,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, ReactNode, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
 import { MvpOutput, buildLocalOutput } from "@/components/mvp/MvpStorage";
@@ -17,9 +40,12 @@ type ConceptChartDatum = {
   value: number;
 };
 
+type ConceptDiagramRole = "input" | "process" | "output";
+
 type ConceptDiagramNode = {
   label: string;
   description?: string;
+  role?: ConceptDiagramRole;
 };
 
 type ConceptDiagramLink = {
@@ -52,7 +78,12 @@ type ConceptAnswerBlock = {
 type ConceptOutput = MvpOutput & {
   answerMeta?: ConceptAnswerMeta;
   answerBlocks?: ConceptAnswerBlock[];
+  emoji?: string;
 };
+
+type AnswerSection =
+  | { kind: "block"; block: ConceptAnswerBlock }
+  | { kind: "tips"; notes: string[] };
 
 const initialValues = {
   topic: "증발",
@@ -65,6 +96,24 @@ const initialValues = {
 const levelOptions = ["초등 저학년", "초등 고학년", "중학생", "고등학생"];
 const lengthOptions = ["핵심 내용만", "자세히"];
 
+const LOADING_STAGES = [
+  "질문 살펴보는 중",
+  "눈높이에 맞춰 설명 쓰는 중",
+  "표·예시·도식 고르는 중",
+  "확인 문제 만드는 중",
+];
+
+const BLOCK_META: Record<ConceptAnswerBlock["type"], { label: string; icon: LucideIcon }> = {
+  paragraph: { label: "설명", icon: BookOpen },
+  example: { label: "예시", icon: MessageSquareQuote },
+  table: { label: "표", icon: Table2 },
+  steps: { label: "순서", icon: ListOrdered },
+  check: { label: "확인", icon: CheckCircle2 },
+  question: { label: "다음 질문", icon: HelpCircle },
+  chart: { label: "차트", icon: BarChart3 },
+  diagram: { label: "도식", icon: Workflow },
+};
+
 type MarkdownBlock =
   | { type: "heading"; level: 1 | 2 | 3; text: string }
   | { type: "paragraph"; text: string }
@@ -75,24 +124,48 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
   const [values, setValues] = useState(initialValues);
   const [board, setBoard] = useState<ConceptOutput>(() => buildConceptFallback(app, spec, initialValues));
   const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState(0);
   const [source, setSource] = useState<"live" | "fallback" | "local">("local");
   const [copied, setCopied] = useState(false);
+  const [viewMode, setViewMode] = useState<"all" | "steps">("all");
+  const [stepIndex, setStepIndex] = useState(0);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(() => new Set());
 
   const completion = useMemo(() => {
     const count = [values.topic, values.sourceSentence, values.level, values.notes, values.length].filter((item) => item.trim()).length;
     return Math.round((count / 5) * 100);
   }, [values]);
 
+  const sections = useMemo<AnswerSection[]>(() => {
+    const blocks = board.answerBlocks ?? [];
+    const list: AnswerSection[] = blocks.map((block) => ({ kind: "block" as const, block }));
+    const tips = (board.notes ?? []).map((note) => note.trim()).filter(Boolean);
+    if (tips.length) list.push({ kind: "tips", notes: tips });
+    return list;
+  }, [board]);
+
+  const safeStep = Math.min(stepIndex, Math.max(sections.length - 1, 0));
+  const isLastStep = safeStep >= sections.length - 1;
+  const showSteps = viewMode === "steps" && sections.length > 1;
+
+  useEffect(() => {
+    if (!loading) return undefined;
+    const timer = window.setInterval(() => {
+      setLoadingStage((stage) => Math.min(stage + 1, LOADING_STAGES.length - 1));
+    }, 3200);
+    return () => window.clearInterval(timer);
+  }, [loading]);
+
   function updateValue(id: keyof typeof values, value: string) {
     setValues((current) => ({ ...current, [id]: value }));
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function runGenerate(current: typeof initialValues) {
     setLoading(true);
+    setLoadingStage(0);
     setCopied(false);
 
-    const fallback = buildConceptFallback(app, spec, values);
+    const fallback = buildConceptFallback(app, spec, current);
 
     try {
       const response = await fetch("/api/ai/generate", {
@@ -101,7 +174,7 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
         body: JSON.stringify({
           appSlug: app.slug,
           mode: "text",
-          values,
+          values: current,
         }),
       });
       const data = await response.json();
@@ -112,14 +185,19 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
         // otherwise fall back title/lead too, so the heading never mismatches the body.
         const blocksAreLive = answerBlocks.length > 0 && answerBlocks !== fallback.answerBlocks;
         const live = isLive && blocksAreLive;
+        const liveEmoji = normalizeEmoji(data.emoji);
+        const liveNotes = Array.isArray(data.notes)
+          ? data.notes.filter((note: unknown): note is string => typeof note === "string" && Boolean(note.trim()))
+          : [];
         setBoard({
           ...fallback,
           answerMeta: live && data.answerMeta ? normalizeAnswerMeta(data.answerMeta, fallback.answerMeta) : fallback.answerMeta,
           title: live && data.title ? data.title : fallback.title,
           lead: live && data.lead ? data.lead : fallback.lead,
+          emoji: live && liveEmoji ? liveEmoji : fallback.emoji,
           cards: live && Array.isArray(data.cards) && data.cards.length ? data.cards.slice(0, 4) : fallback.cards,
           answerBlocks: blocksAreLive ? answerBlocks : fallback.answerBlocks,
-          notes: live && Array.isArray(data.notes) && data.notes.length ? data.notes : fallback.notes,
+          notes: live && liveNotes.length ? liveNotes : fallback.notes,
           source: live ? "live" : "fallback",
           updatedAt: new Date().toISOString(),
         });
@@ -133,15 +211,43 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
       setSource("fallback");
     } finally {
       setLoading(false);
+      setStepIndex(0);
+      setCheckedIds(new Set());
     }
   }
 
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await runGenerate(values);
+  }
+
+  function askFollowUp(question: string) {
+    if (loading) return;
+    const next = { ...values, topic: question };
+    setValues(next);
+    void runGenerate(next);
+  }
+
+  function toggleCheck(id: string) {
+    setCheckedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
   async function copyBoard() {
+    const tips = (board.notes ?? []).map((note) => note.trim()).filter(Boolean);
     const text = [
       `[${board.title}]`,
       board.lead,
       ...(board.answerBlocks ?? []).map(stringifyAnswerBlock),
       ...(board.answerBlocks?.length ? [] : board.cards.map((card, index) => `${index + 1}. ${card.title}: ${card.body}`)),
+      ...(tips.length ? ["공부 팁", ...tips.map((tip) => `- ${tip}`)] : []),
     ].join("\n");
     try {
       await navigator.clipboard.writeText(text);
@@ -157,6 +263,8 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
     setBoard(buildConceptFallback(app, spec, initialValues));
     setSource("local");
     setCopied(false);
+    setStepIndex(0);
+    setCheckedIds(new Set());
   }
 
   return (
@@ -258,17 +366,118 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
           <article className={`concept-main-card concept-answer-card ${loading ? "is-loading" : ""}`}>
             {loading ? (
               <div className="concept-answer-loading" aria-live="polite">
-                <Loader2 className="animate-spin" size={22} />
-                <span>쉬운 설명을 쓰는 중…</span>
+                <ul className="concept-loading-stages">
+                  {LOADING_STAGES.map((stage, index) => (
+                    <li key={stage} className={index < loadingStage ? "is-done" : index === loadingStage ? "is-active" : ""}>
+                      {index < loadingStage ? (
+                        <CheckCircle2 size={15} />
+                      ) : index === loadingStage ? (
+                        <Loader2 className="animate-spin" size={15} />
+                      ) : (
+                        <Circle size={15} />
+                      )}
+                      <span>{stage}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ) : null}
-            <span>{values.level} · {values.length}</span>
-            <h2>{board.title}</h2>
+            <header className="concept-answer-hero">
+              <span className="concept-answer-emoji" aria-hidden="true">{board.emoji || "📖"}</span>
+              <div className="concept-answer-hero-copy">
+                <p className="concept-answer-kicker">{values.level} 눈높이 · {values.length}</p>
+                <h2>{board.title}</h2>
+              </div>
+            </header>
             <MarkdownText className="concept-markdown-text concept-lead-text" text={board.lead} />
-            <AnswerBlocks blocks={board.answerBlocks ?? []} />
+
+            {sections.length > 1 ? (
+              <div className="concept-view-toggle" role="group" aria-label="답변 보기 방식">
+                <button
+                  className={!showSteps ? "is-on" : ""}
+                  type="button"
+                  onClick={() => setViewMode("all")}
+                >
+                  <LayoutGrid size={14} />
+                  한눈에
+                </button>
+                <button
+                  className={showSteps ? "is-on" : ""}
+                  type="button"
+                  onClick={() => setViewMode("steps")}
+                >
+                  <Layers size={14} />
+                  한 장씩
+                </button>
+              </div>
+            ) : null}
+
+            {showSteps ? (
+              <div className="concept-step-area">
+                <div className="concept-step-head">
+                  <span className="concept-step-count">{safeStep + 1} / {sections.length}</span>
+                  <div className="concept-step-dots">
+                    {sections.map((section, index) => (
+                      <button
+                        aria-label={`${index + 1}번째 카드 보기`}
+                        className={index === safeStep ? "is-on" : index < safeStep ? "is-done" : ""}
+                        key={sectionKey(section, index)}
+                        type="button"
+                        onClick={() => setStepIndex(index)}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="concept-step-slide" key={safeStep}>
+                  <SectionCard
+                    busy={loading}
+                    checkedIds={checkedIds}
+                    emoji={board.emoji}
+                    section={sections[safeStep]}
+                    sectionIndex={safeStep}
+                    onAskFollowUp={askFollowUp}
+                    onToggleCheck={toggleCheck}
+                  />
+                </div>
+                <div className="concept-step-nav">
+                  <button className="button-secondary" disabled={safeStep === 0} type="button" onClick={() => setStepIndex(Math.max(safeStep - 1, 0))}>
+                    <ChevronLeft size={17} />
+                    이전
+                  </button>
+                  <button className="button-primary" type="button" onClick={() => setStepIndex(isLastStep ? 0 : safeStep + 1)}>
+                    {isLastStep ? (
+                      <>
+                        <RotateCcw size={16} />
+                        처음부터
+                      </>
+                    ) : (
+                      <>
+                        다음
+                        <ChevronRight size={17} />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="concept-answer-flow">
+                {sections.map((section, index) => (
+                  <SectionCard
+                    busy={loading}
+                    checkedIds={checkedIds}
+                    emoji={board.emoji}
+                    key={sectionKey(section, index)}
+                    section={section}
+                    sectionIndex={index}
+                    onAskFollowUp={askFollowUp}
+                    onToggleCheck={toggleCheck}
+                  />
+                ))}
+              </div>
+            )}
           </article>
 
-          {board.answerBlocks?.length ? null : (
+          {sections.length ? null : (
             <div className="concept-card-grid">
               {board.cards.slice(0, 3).map((card) => (
                 <article key={card.title}>
@@ -289,44 +498,126 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
   );
 }
 
-function AnswerBlocks({ blocks }: { blocks: ConceptAnswerBlock[] }) {
-  if (!blocks.length) return null;
+function sectionKey(section: AnswerSection, index: number) {
+  return section.kind === "tips" ? `tips-${index}` : `${section.block.title}-${index}`;
+}
+
+function SectionCard({
+  section,
+  sectionIndex,
+  emoji,
+  checkedIds,
+  busy,
+  onToggleCheck,
+  onAskFollowUp,
+}: {
+  section: AnswerSection;
+  sectionIndex: number;
+  emoji?: string;
+  checkedIds: Set<string>;
+  busy: boolean;
+  onToggleCheck: (id: string) => void;
+  onAskFollowUp: (question: string) => void;
+}) {
+  if (section.kind === "tips") {
+    return (
+      <section className="concept-answer-block concept-tip-card">
+        <header className="concept-block-head">
+          <span className="concept-block-chip is-tips">
+            <Sparkles size={13} />
+            공부 팁
+          </span>
+        </header>
+        <ul className="concept-tip-list">
+          {section.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
+
+  const block = section.block;
+  const meta = BLOCK_META[block.type];
+  const Icon = meta.icon;
+  const checkedCount = block.type === "check"
+    ? (block.items ?? []).filter((_, index) => checkedIds.has(`${sectionIndex}:${index}`)).length
+    : 0;
 
   return (
-    <div className="concept-answer-flow">
-      {blocks.map((block, index) => (
-        <section className={`concept-answer-block concept-answer-block-${block.type}`} key={`${block.title}-${index}`}>
-          <span>{blockLabel(block.type)}</span>
-          <strong>{block.title}</strong>
-          {block.body ? <MarkdownText className="concept-markdown-text" text={block.body} /> : null}
-          {block.rows?.length ? (
-            <table>
-              <tbody>
-                {block.rows.map((row) => (
-                  <tr key={`${row.label}-${row.value}`}>
-                    <th scope="row">{row.label}</th>
-                    <td>{row.value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : null}
-          {block.items?.length ? (
-            <ul>
-              {block.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          ) : null}
-          {block.type === "chart" && block.data?.length ? (
-            <ConceptChart type={block.chartType ?? "bar"} data={block.data} unit={block.unit} />
-          ) : null}
-          {block.type === "diagram" && block.nodes?.length ? (
-            <ConceptDiagram type={block.diagramType ?? "flow"} nodes={block.nodes} links={block.links ?? []} />
-          ) : null}
-        </section>
-      ))}
-    </div>
+    <section className={`concept-answer-block concept-answer-block-${block.type}`}>
+      <header className="concept-block-head">
+        <span className={`concept-block-chip is-${block.type}`}>
+          <Icon size={13} />
+          {meta.label}
+        </span>
+        {block.type === "check" && block.items?.length ? (
+          <em className="concept-check-progress">{checkedCount}/{block.items.length} 확인</em>
+        ) : null}
+      </header>
+      <strong>{block.title}</strong>
+      {block.body ? <MarkdownText className="concept-markdown-text" text={block.body} /> : null}
+      {block.rows?.length ? (
+        <table>
+          <tbody>
+            {block.rows.map((row) => (
+              <tr key={`${row.label}-${row.value}`}>
+                <th scope="row">{row.label}</th>
+                <td>{row.value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      {block.items?.length ? (
+        block.type === "check" ? (
+          <ul className="concept-check-list">
+            {block.items.map((item, index) => {
+              const id = `${sectionIndex}:${index}`;
+              const checked = checkedIds.has(id);
+              return (
+                <li key={id}>
+                  <button aria-pressed={checked} className={checked ? "is-checked" : ""} type="button" onClick={() => onToggleCheck(id)}>
+                    {checked ? <CheckCircle2 size={17} /> : <Circle size={17} />}
+                    <span>{item}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : block.type === "question" ? (
+          <div className="concept-followup-chips">
+            {block.items.map((question) => (
+              <button disabled={busy} key={question} type="button" onClick={() => onAskFollowUp(question)}>
+                <CornerDownRight size={14} />
+                <span>{question}</span>
+              </button>
+            ))}
+          </div>
+        ) : block.type === "steps" ? (
+          <ol className="concept-steps-list">
+            {block.items.map((item, index) => (
+              <li key={item}>
+                <span>{index + 1}</span>
+                <p>{item}</p>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <ul>
+            {block.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        )
+      ) : null}
+      {block.type === "chart" && block.data?.length ? (
+        <ConceptChart type={block.chartType ?? "bar"} data={block.data} unit={block.unit} />
+      ) : null}
+      {block.type === "diagram" && block.nodes?.length ? (
+        <ConceptDiagram emoji={emoji} type={block.diagramType ?? "flow"} nodes={block.nodes} links={block.links ?? []} />
+      ) : null}
+    </section>
   );
 }
 
@@ -384,10 +675,12 @@ function ConceptDiagram({
   type,
   nodes,
   links,
+  emoji,
 }: {
   type: "flow" | "cycle" | "compare" | "grid";
   nodes: ConceptDiagramNode[];
   links: ConceptDiagramLink[];
+  emoji?: string;
 }) {
   const cleanNodes = nodes.slice(0, 6);
 
@@ -396,7 +689,7 @@ function ConceptDiagram({
   }
 
   if (type === "cycle") {
-    return <CycleDiagram nodes={cleanNodes} />;
+    return <CycleDiagram emoji={emoji} nodes={cleanNodes} />;
   }
 
   if (type === "compare") {
@@ -436,82 +729,322 @@ function GridDiagram({ nodes }: { nodes: ConceptDiagramNode[] }) {
   );
 }
 
+const FLOW_LINE_HEIGHT = 17;
+const FLOW_PAD_X = 13;
+const FLOW_PAD_Y = 11;
+const FLOW_MAX_TEXT_WIDTH = 150;
+
+type FlowEdge = { from: number; to: number; label?: string };
+
+type FlowPlacedNode = {
+  node: ConceptDiagramNode;
+  lines: string[];
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  role: ConceptDiagramRole;
+};
+
+function estimateTextWidth(text: string) {
+  let width = 0;
+  for (const char of text) {
+    const code = char.codePointAt(0) ?? 0;
+    if (code > 0x2e7f) width += 13.5;
+    else if (/[A-Z0-9]/.test(char)) width += 8.8;
+    else if (char === " ") width += 4.2;
+    else width += 7.4;
+  }
+  return width;
+}
+
+function wrapLabel(label: string, maxWidth: number, maxLines = 3) {
+  const words = label.trim().split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+
+  const push = () => {
+    if (current) {
+      lines.push(current);
+      current = "";
+    }
+  };
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (estimateTextWidth(candidate) <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+    push();
+    if (estimateTextWidth(word) <= maxWidth) {
+      current = word;
+      continue;
+    }
+    let chunk = "";
+    for (const char of word) {
+      if (estimateTextWidth(chunk + char) > maxWidth && chunk) {
+        lines.push(chunk);
+        chunk = char;
+      } else {
+        chunk += char;
+      }
+    }
+    current = chunk;
+  }
+  push();
+
+  if (!lines.length) return [label.trim() || label];
+  if (lines.length > maxLines) {
+    const kept = lines.slice(0, maxLines);
+    kept[maxLines - 1] = `${kept[maxLines - 1].replace(/…$/, "")}…`;
+    return kept;
+  }
+  return lines;
+}
+
+function computeFlowLayout(nodes: ConceptDiagramNode[], links: ConceptDiagramLink[]) {
+  const indexByLabel = new Map(nodes.map((node, index) => [node.label, index]));
+  const edges: FlowEdge[] = [];
+  const seenEdges = new Set<string>();
+  links.forEach((link) => {
+    const from = indexByLabel.get(link.from);
+    const to = indexByLabel.get(link.to);
+    if (from === undefined || to === undefined || from === to) return;
+    const key = `${from}->${to}`;
+    if (seenEdges.has(key)) return;
+    seenEdges.add(key);
+    edges.push({ from, to, label: link.label });
+  });
+
+  // Layer nodes by longest path from the sources; without usable links,
+  // fall back to the given order as a left-to-right chain.
+  const layers = nodes.map((_, index) => (edges.length ? 0 : index));
+  if (edges.length) {
+    for (let pass = 0; pass < nodes.length; pass += 1) {
+      let changed = false;
+      edges.forEach((edge) => {
+        const next = layers[edge.from] + 1;
+        if (next < nodes.length && layers[edge.to] < next) {
+          layers[edge.to] = next;
+          changed = true;
+        }
+      });
+      if (!changed) break;
+    }
+  }
+
+  const layerCount = Math.max(...layers, 0) + 1;
+  const colGap = 62;
+  const rowGap = 16;
+  const margin = 12;
+
+  const measured = nodes.map((node, index) => {
+    const lines = wrapLabel(node.label, FLOW_MAX_TEXT_WIDTH);
+    const textWidth = Math.max(...lines.map(estimateTextWidth));
+    return {
+      node,
+      lines,
+      layer: layers[index],
+      width: Math.min(Math.max(Math.ceil(textWidth) + FLOW_PAD_X * 2, 96), FLOW_MAX_TEXT_WIDTH + FLOW_PAD_X * 2),
+      height: lines.length * FLOW_LINE_HEIGHT + FLOW_PAD_Y * 2,
+    };
+  });
+
+  const columns: number[][] = Array.from({ length: layerCount }, () => []);
+  measured.forEach((item, index) => columns[item.layer].push(index));
+
+  const columnWidths = columns.map((column) => Math.max(...column.map((index) => measured[index].width), 96));
+  const columnHeights = columns.map((column) =>
+    column.reduce((sum, index) => sum + measured[index].height, 0) + rowGap * Math.max(column.length - 1, 0),
+  );
+  const innerHeight = Math.max(...columnHeights, 60);
+
+  const columnX: number[] = [];
+  let cursor = margin;
+  columnWidths.forEach((width) => {
+    columnX.push(cursor);
+    cursor += width + colGap;
+  });
+  const totalWidth = cursor - colGap + margin;
+  const totalHeight = innerHeight + margin * 2;
+
+  const placed: FlowPlacedNode[] = new Array(nodes.length);
+  columns.forEach((column, layerIndex) => {
+    let y = margin + (innerHeight - columnHeights[layerIndex]) / 2;
+    column.forEach((nodeIndex) => {
+      const item = measured[nodeIndex];
+      placed[nodeIndex] = {
+        node: item.node,
+        lines: item.lines,
+        x: columnX[layerIndex] + (columnWidths[layerIndex] - item.width) / 2,
+        y,
+        width: item.width,
+        height: item.height,
+        role:
+          item.node.role ??
+          (layerCount === 1
+            ? "process"
+            : item.layer === 0
+              ? "input"
+              : item.layer === layerCount - 1
+                ? "output"
+                : "process"),
+      };
+      y += item.height + rowGap;
+    });
+  });
+
+  const renderEdges: FlowEdge[] = edges.length
+    ? edges
+    : nodes.slice(0, -1).map((_, index) => ({ from: index, to: index + 1 }));
+
+  return { placed, renderEdges, totalWidth, totalHeight, layerCount, hasRealEdges: edges.length > 0 };
+}
+
 function FlowDiagram({ nodes, links }: { nodes: ConceptDiagramNode[]; links: ConceptDiagramLink[] }) {
-  const width = 640;
-  const height = 160;
-  const count = Math.max(nodes.length, 1);
-  const nodeWidth = count > 3 ? 110 : 132;
-  const gap = count === 1 ? 0 : (width - nodeWidth - 48) / (count - 1);
-  const positions = nodes.map((node, index) => ({
-    ...node,
-    x: 24 + index * gap,
-    y: 42,
-  }));
+  const layout = computeFlowLayout(nodes, links);
+  const rolesUsed = new Set(layout.placed.map((item) => item.role));
+  const showLegend = layout.layerCount > 1 && rolesUsed.size > 1;
 
   return (
     <div className="concept-diagram concept-diagram-flow" role="img" aria-label="흐름 도식">
-      <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-        <defs>
-          <marker id="concept-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-            <path d="M0 0L10 5L0 10Z" />
-          </marker>
-        </defs>
-        {positions.slice(0, -1).map((node, index) => (
-          <line
-            className="concept-diagram-link"
-            key={`${node.label}-${positions[index + 1].label}`}
-            x1={node.x + nodeWidth}
-            x2={positions[index + 1].x - 10}
-            y1={80}
-            y2={80}
-            markerEnd="url(#concept-arrow)"
-          />
-        ))}
-        {positions.map((node) => (
-          <g key={node.label}>
-            <rect x={node.x} y={node.y} width={nodeWidth} height="76" rx="8" />
-            <text x={node.x + nodeWidth / 2} y={node.y + 34} textAnchor="middle">
-              {wrapSvgLabel(node.label, 8).map((line, index) => (
-                <tspan key={`${line}-${index}`} x={node.x + nodeWidth / 2} dy={index ? 15 : 0}>{line}</tspan>
-              ))}
-            </text>
-          </g>
-        ))}
-      </svg>
-      <DiagramNotes nodes={nodes} links={links} />
+      <div className="concept-flow-scroll">
+        <svg
+          className="concept-flow-svg"
+          viewBox={`0 0 ${layout.totalWidth} ${layout.totalHeight}`}
+          style={{ minWidth: Math.min(layout.totalWidth, 640) }}
+          aria-hidden="true"
+        >
+          <defs>
+            <marker id="concept-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+              <path d="M0 0L10 5L0 10Z" style={{ fill: "#6fae9f" }} />
+            </marker>
+          </defs>
+          {layout.renderEdges.map((edge, edgeIndex) => {
+            const from = layout.placed[edge.from];
+            const to = layout.placed[edge.to];
+            const x1 = from.x + from.width;
+            const y1 = from.y + from.height / 2;
+            const x2 = to.x - 9;
+            const y2 = to.y + to.height / 2;
+            const bend = Math.max((x2 - x1) / 2, 16);
+            // Alternate label offsets so labels on converging edges don't sit
+            // on top of each other.
+            const labelOffset = edgeIndex % 2 === 0 ? -7 : 15;
+            return (
+              <g key={`${edge.from}-${edge.to}`}>
+                <path
+                  className="concept-flow-edge"
+                  d={`M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`}
+                  markerEnd="url(#concept-arrow)"
+                />
+                {edge.label ? (
+                  <text className="concept-flow-edge-label" textAnchor="middle" x={(x1 + x2 + 9) / 2} y={(y1 + y2) / 2 + labelOffset}>
+                    {shortLabel(edge.label, 12)}
+                  </text>
+                ) : null}
+              </g>
+            );
+          })}
+          {layout.placed.map((item) => {
+            const centerX = item.x + item.width / 2;
+            const startY = item.y + item.height / 2 - ((item.lines.length - 1) * FLOW_LINE_HEIGHT) / 2 + 4.5;
+            return (
+              <g className={`concept-flow-node concept-flow-node-${item.role}`} key={item.node.label}>
+                <rect height={item.height} rx="9" width={item.width} x={item.x} y={item.y} />
+                <text textAnchor="middle" x={centerX} y={startY}>
+                  {item.lines.map((line, lineIndex) => (
+                    <tspan key={`${line}-${lineIndex}`} x={centerX} dy={lineIndex ? FLOW_LINE_HEIGHT : 0}>{line}</tspan>
+                  ))}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      {showLegend ? (
+        <div className="concept-flow-legend">
+          {rolesUsed.has("input") ? <span className="is-input">들어가는 것</span> : null}
+          {rolesUsed.has("process") ? <span className="is-process">일어나는 일</span> : null}
+          {rolesUsed.has("output") ? <span className="is-output">나오는 것</span> : null}
+        </div>
+      ) : null}
+      <DiagramNotes nodes={nodes} links={[]} />
     </div>
   );
 }
 
-function CycleDiagram({ nodes }: { nodes: ConceptDiagramNode[] }) {
-  const width = 360;
-  const height = 260;
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const radius = 86;
-  const positions = nodes.map((node, index) => {
-    const angle = (Math.PI * 2 * index) / nodes.length - Math.PI / 2;
+function CycleDiagram({ nodes, emoji }: { nodes: ConceptDiagramNode[]; emoji?: string }) {
+  const items = nodes.map((node) => {
+    const lines = wrapLabel(node.label, 112, 2);
+    const textWidth = Math.max(...lines.map(estimateTextWidth));
     return {
-      ...node,
-      x: centerX + Math.cos(angle) * radius,
-      y: centerY + Math.sin(angle) * radius,
+      node,
+      lines,
+      width: Math.min(Math.max(Math.ceil(textWidth) + 22, 86), 138),
+      height: lines.length * 16 + 20,
+    };
+  });
+  const count = Math.max(items.length, 1);
+  const maxWidth = Math.max(...items.map((item) => item.width));
+  const maxHeight = Math.max(...items.map((item) => item.height));
+  const radius = Math.max(80, (count * (maxWidth + 34)) / (2 * Math.PI) + 22);
+  const centerX = radius + maxWidth / 2 + 14;
+  const centerY = radius + maxHeight / 2 + 14;
+  const width = centerX * 2;
+  const height = centerY * 2;
+
+  const positioned = items.map((item, index) => {
+    const angle = (Math.PI * 2 * index) / count - Math.PI / 2;
+    return {
+      ...item,
+      angle,
+      cx: centerX + Math.cos(angle) * radius,
+      cy: centerY + Math.sin(angle) * radius,
     };
   });
 
+  const arrows = count > 1
+    ? positioned.map((item) => {
+        const midAngle = item.angle + Math.PI / count;
+        return {
+          x: centerX + Math.cos(midAngle) * radius,
+          y: centerY + Math.sin(midAngle) * radius,
+          deg: (midAngle * 180) / Math.PI + 90,
+        };
+      })
+    : [];
+
   return (
     <div className="concept-diagram concept-diagram-cycle" role="img" aria-label="순환 도식">
-      <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+      <svg className="concept-cycle-svg" viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
         <circle className="concept-diagram-cycle-ring" cx={centerX} cy={centerY} r={radius} />
-        {positions.map((node) => (
-          <g key={node.label}>
-            <circle cx={node.x} cy={node.y} r="38" />
-            <text x={node.x} y={node.y - 4} textAnchor="middle">
-              {wrapSvgLabel(node.label, 7).map((line, index) => (
-                <tspan key={`${line}-${index}`} x={node.x} dy={index ? 14 : 0}>{line}</tspan>
-              ))}
-            </text>
-          </g>
+        {arrows.map((arrow) => (
+          <path
+            className="concept-cycle-arrow"
+            d="M -4 -5 L 6 0 L -4 5 Z"
+            key={`${arrow.x}-${arrow.y}`}
+            transform={`translate(${arrow.x} ${arrow.y}) rotate(${arrow.deg})`}
+          />
         ))}
+        <circle className="concept-cycle-center" cx={centerX} cy={centerY} r="30" />
+        <text className="concept-cycle-emoji" textAnchor="middle" x={centerX} y={centerY + 9}>{emoji || "🔄"}</text>
+        {positioned.map((item) => {
+          const boxX = item.cx - item.width / 2;
+          const boxY = item.cy - item.height / 2;
+          const startY = item.cy - ((item.lines.length - 1) * 16) / 2 + 4.5;
+          return (
+            <g className="concept-cycle-node" key={item.node.label}>
+              <rect height={item.height} rx="9" width={item.width} x={boxX} y={boxY} />
+              <text textAnchor="middle" x={item.cx} y={startY}>
+                {item.lines.map((line, lineIndex) => (
+                  <tspan key={`${line}-${lineIndex}`} x={item.cx} dy={lineIndex ? 16 : 0}>{line}</tspan>
+                ))}
+              </text>
+            </g>
+          );
+        })}
       </svg>
       <DiagramNotes nodes={nodes} links={[]} />
     </div>
@@ -519,45 +1052,48 @@ function CycleDiagram({ nodes }: { nodes: ConceptDiagramNode[] }) {
 }
 
 function CompareDiagram({ nodes }: { nodes: ConceptDiagramNode[] }) {
-  const left = nodes[0];
-  const right = nodes[1] ?? nodes[0];
-  const width = 520;
-  const height = 170;
+  const [left, right, ...rest] = nodes;
+  if (!left) return null;
+  const pair = right ?? left;
 
   return (
-    <div className="concept-diagram concept-diagram-compare" role="img" aria-label="비교 도식">
-      <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-        {[left, right].map((node, index) => {
-          const x = index === 0 ? 24 : 286;
-          return (
-            <g key={`${node.label}-${index}`}>
-              <rect x={x} y="28" width="210" height="112" rx="8" />
-              <text x={x + 105} y="72" textAnchor="middle">
-                {wrapSvgLabel(node.label, 9).map((line, lineIndex) => (
-                  <tspan key={`${line}-${lineIndex}`} x={x + 105} dy={lineIndex ? 16 : 0}>{line}</tspan>
-                ))}
-              </text>
-            </g>
-          );
-        })}
-        <line className="concept-diagram-link" x1="236" x2="276" y1="84" y2="84" />
-      </svg>
-      <DiagramNotes nodes={nodes.slice(0, 2)} links={[]} />
+    <div className="concept-diagram concept-compare" role="group" aria-label="비교 도식">
+      <div className="concept-compare-row">
+        <article className="concept-compare-side">
+          <strong>{left.label}</strong>
+          {left.description ? <p>{left.description}</p> : null}
+        </article>
+        <span aria-hidden="true" className="concept-compare-vs">VS</span>
+        <article className="concept-compare-side is-alt">
+          <strong>{pair.label}</strong>
+          {pair.description ? <p>{pair.description}</p> : null}
+        </article>
+      </div>
+      <DiagramNotes nodes={rest} links={[]} />
     </div>
   );
 }
 
 function DiagramNotes({ nodes, links }: { nodes: ConceptDiagramNode[]; links: ConceptDiagramLink[] }) {
   const notes = nodes.filter((node) => node.description);
+  const labeledLinks = links.filter((link) => link.label);
+  if (!notes.length && !labeledLinks.length) return null;
+
   return (
-    <div className="concept-diagram-notes">
+    <dl className="concept-diagram-notes">
       {notes.map((node) => (
-        <p key={`${node.label}-${node.description}`}><strong>{node.label}</strong> {node.description}</p>
+        <div key={`${node.label}-${node.description}`}>
+          <dt>{node.label}</dt>
+          <dd>{node.description}</dd>
+        </div>
       ))}
-      {links.filter((link) => link.label).map((link) => (
-        <p key={`${link.from}-${link.to}-${link.label}`}>{link.from} → {link.to}: {link.label}</p>
+      {labeledLinks.map((link) => (
+        <div key={`${link.from}-${link.to}-${link.label}`}>
+          <dt>{link.from} → {link.to}</dt>
+          <dd>{link.label}</dd>
+        </div>
       ))}
-    </div>
+    </dl>
   );
 }
 
@@ -569,26 +1105,8 @@ function shortLabel(label: string, maxLength: number) {
   return label.length > maxLength ? `${label.slice(0, maxLength - 1)}...` : label;
 }
 
-function wrapSvgLabel(label: string, maxLength: number) {
-  const clean = label.trim();
-  if (clean.length <= maxLength) return [clean];
-
-  const lines: string[] = [];
-  for (let index = 0; index < clean.length && lines.length < 3; index += maxLength) {
-    lines.push(clean.slice(index, index + maxLength));
-  }
-  return lines;
-}
-
 function blockLabel(type: ConceptAnswerBlock["type"]) {
-  if (type === "table") return "표";
-  if (type === "chart") return "차트";
-  if (type === "diagram") return "도식";
-  if (type === "steps") return "순서";
-  if (type === "example") return "예시";
-  if (type === "check") return "확인";
-  if (type === "question") return "다음 질문";
-  return "설명";
+  return BLOCK_META[type].label;
 }
 
 function MarkdownText({ className, text }: { className?: string; text: string }) {
@@ -733,6 +1251,7 @@ function buildConceptFallback(app: AppItem, spec: MvpSpec, values: typeof initia
     ...base,
     title: fallback.title,
     lead: fallback.lead,
+    emoji: fallback.emoji,
     cards: fallback.cards,
     answerMeta: fallback.answerMeta,
     answerBlocks: fallback.answerBlocks,
@@ -761,6 +1280,13 @@ function normalizeAnswerMeta(input: unknown, fallback?: ConceptAnswerMeta) {
     lessonContext: typeof raw.lessonContext === "string" ? raw.lessonContext.trim() : fallback?.lessonContext,
     studentIntent: typeof raw.studentIntent === "string" ? raw.studentIntent.trim() : fallback?.studentIntent,
   };
+}
+
+function normalizeEmoji(input: unknown) {
+  if (typeof input !== "string") return undefined;
+  const clean = input.trim();
+  if (!clean || clean.length > 8 || /[A-Za-z0-9가-힣]/.test(clean)) return undefined;
+  return clean;
 }
 
 function normalizeAnswerBlock(item: unknown): ConceptAnswerBlock | undefined {
@@ -808,8 +1334,17 @@ function normalizeAnswerBlock(item: unknown): ConceptAnswerBlock | undefined {
           const current = entry as Record<string, unknown>;
           const label = typeof current.label === "string" ? current.label.trim() : "";
           const description = typeof current.description === "string" ? current.description.trim() : undefined;
-          const node: ConceptDiagramNode = description ? { label, description } : { label };
-          return label ? node : undefined;
+          const role =
+            current.role === "input" || current.role === "process" || current.role === "output"
+              ? current.role
+              : undefined;
+          if (!label) return undefined;
+          const node: ConceptDiagramNode = {
+            label,
+            ...(description ? { description } : {}),
+            ...(role ? { role } : {}),
+          };
+          return node;
         })
         .filter((entry): entry is ConceptDiagramNode => Boolean(entry))
     : undefined;
@@ -897,6 +1432,11 @@ function buildFallbackAnswer(topic: string, context: string, sourceSentence: str
           "위도와 경도의 차이를 한 문장으로 설명할 수 있어요.",
         ],
       },
+      {
+        type: "question",
+        title: "이어서 물어보기",
+        items: ["시차는 왜 생기나요?", "우리나라의 경도는 몇 도인가요?"],
+      },
     ];
 
     if (isDetailed) {
@@ -909,7 +1449,7 @@ function buildFallbackAnswer(topic: string, context: string, sourceSentence: str
       });
     }
 
-    return makeFallbackPayload(topic, sourceSentence, context, meaning, blocks, level);
+    return makeFallbackPayload(topic, sourceSentence, context, meaning, blocks, level, "🧭");
   }
 
   if (topic.includes("위도")) {
@@ -944,9 +1484,14 @@ function buildFallbackAnswer(topic: string, context: string, sourceSentence: str
           "위도와 경도의 차이를 한 문장으로 설명할 수 있어요.",
         ],
       },
+      {
+        type: "question",
+        title: "이어서 물어보기",
+        items: ["적도 근처는 왜 더운가요?", "우리나라의 위도는 몇 도인가요?"],
+      },
     ];
 
-    return makeFallbackPayload(topic, sourceSentence, context, meaning, blocks, level);
+    return makeFallbackPayload(topic, sourceSentence, context, meaning, blocks, level, "🌍");
   }
 
   if (topic.includes("증발")) {
@@ -958,9 +1503,9 @@ function buildFallbackAnswer(topic: string, context: string, sourceSentence: str
         title: "증발이 일어나는 흐름",
         diagramType: "flow",
         nodes: [
-          { label: "액체 물", description: "처음에는 눈에 보이는 물입니다." },
-          { label: "수증기", description: "기체 상태로 바뀝니다." },
-          { label: "공기 중", description: "주변 공기와 섞입니다." },
+          { label: "액체 물", description: "처음에는 눈에 보이는 물입니다.", role: "input" },
+          { label: "수증기", description: "기체 상태로 바뀝니다.", role: "process" },
+          { label: "공기 중", description: "주변 공기와 섞입니다.", role: "output" },
         ],
         links: [
           { from: "액체 물", to: "수증기", label: "상태 변화" },
@@ -977,9 +1522,14 @@ function buildFallbackAnswer(topic: string, context: string, sourceSentence: str
           "젖은 수건이 마르는 까닭을 증발과 연결할 수 있어요.",
         ],
       },
+      {
+        type: "question",
+        title: "이어서 물어보기",
+        items: ["끓음과 증발은 뭐가 다른가요?", "추운 날에도 빨래가 마르나요?"],
+      },
     ];
 
-    return makeFallbackPayload(topic, sourceSentence, context, meaning, blocks, level);
+    return makeFallbackPayload(topic, sourceSentence, context, meaning, blocks, level, "💧");
   }
 
   const meaning = `‘${topic}’은 ${context}에서 중요한 뜻을 가진 말이에요. 앞뒤 문장이나 수업 장면과 함께 보면 무엇을 가리키는지 더 쉽게 알 수 있어요.`;
@@ -1001,7 +1551,15 @@ function buildFallbackAnswer(topic: string, context: string, sourceSentence: str
         "비슷한 말과 헷갈리는 점을 하나 말할 수 있어요.",
       ],
     },
-  ], level);
+    {
+      type: "question",
+      title: "이어서 물어보기",
+      items: [
+        `‘${topic}’${subjectParticle(topic) === "은" ? "과" : "와"} 비슷한 말은 뭐가 있나요?`,
+        `‘${topic}’${subjectParticle(topic)} 어디에서 볼 수 있나요?`,
+      ],
+    },
+  ], level, "📖");
 }
 
 function makeFallbackPayload(
@@ -1011,10 +1569,12 @@ function makeFallbackPayload(
   lead: string,
   answerBlocks: ConceptAnswerBlock[],
   level: string,
+  emoji: string,
 ) {
   return {
     title: buildSafeConceptTitle(topic),
     lead,
+    emoji,
     cards: answerBlocks.map((block) => ({ title: block.title, body: block.body || block.items?.join(" ") || block.rows?.map((row) => `${row.label}: ${row.value}`).join(" ") || "" })),
     answerMeta: {
       term: topic,

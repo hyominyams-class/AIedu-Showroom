@@ -74,6 +74,33 @@ function stripHeavyValues(key: string, value: unknown) {
   return value;
 }
 
+// 이미지 생성형 앱: "생성하기"를 한 번이라도 눌렀는지 기억해
+// 누르기 전에는 결과 이미지 대신 자리 표시를 보여준다.
+function imageGeneratedKey(slug: string) {
+  return `showroom:imagegen:${slug}`;
+}
+
+export function loadImageGenerated(slug: string) {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(imageGeneratedKey(slug)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveImageGenerated(slug: string, generated: boolean) {
+  try {
+    if (generated) {
+      window.localStorage.setItem(imageGeneratedKey(slug), "1");
+    } else {
+      window.localStorage.removeItem(imageGeneratedKey(slug));
+    }
+  } catch {
+    // 저장 실패 시에도 체험은 계속 진행한다.
+  }
+}
+
 export function getPrimary(values: Record<string, string>, fallback: string) {
   return values.topic?.trim() || fallback;
 }

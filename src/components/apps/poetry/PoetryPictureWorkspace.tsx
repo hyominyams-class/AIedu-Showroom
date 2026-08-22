@@ -7,6 +7,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
 import { versionVisualAsset } from "@/lib/visuals";
+import { ImageGenProgress, ImageGenStep, useImageGenRun } from "@/components/mvp/ImageGenProgress";
 
 type PoetryPictureWorkspaceProps = {
   app: AppItem;
@@ -22,11 +23,20 @@ const initialValues = {
 
 const POETRY_RESULT_IMAGE = "/visuals/poetry/rain-playground-poetry-poster.png";
 
+const POETRY_GEN_STEPS: ImageGenStep[] = [
+  { label: "시 읽기", caption: "시의 장면과 분위기를 살핍니다." },
+  { label: "구도 잡기", caption: "시와 어울리는 화면을 잡습니다." },
+  { label: "색 입히기", caption: "계절과 빛의 색을 칠합니다." },
+  { label: "시화 맞추기", caption: "시와 그림을 한 장으로 맞춥니다." },
+];
+
+const POETRY_GEN_DURATION = 3800;
+
 export function PoetryPictureWorkspace({ app, spec }: PoetryPictureWorkspaceProps) {
   const [values, setValues] = useState(initialValues);
-  const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [notice, setNotice] = useState("");
+  const run = useImageGenRun(POETRY_GEN_STEPS.length, POETRY_GEN_DURATION);
 
   useEffect(() => {
     if (!notice) return;
@@ -41,15 +51,12 @@ export function PoetryPictureWorkspace({ app, spec }: PoetryPictureWorkspaceProp
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (run.running) return;
     if (!values.topic.trim() || !values.poem.trim()) {
       setNotice("작품명과 시를 입력해주세요.");
       return;
     }
-    setLoading(true);
-    window.setTimeout(() => {
-      setSubmitted(true);
-      setLoading(false);
-    }, 360);
+    run.start(() => setSubmitted(true));
   }
 
   function reset() {
@@ -115,11 +122,11 @@ export function PoetryPictureWorkspace({ app, spec }: PoetryPictureWorkspaceProp
             <textarea value={values.notes} onChange={(event) => updateValue("notes", event.target.value)} />
           </label>
           <div className="mvp-action-row">
-            <button className="button-primary" disabled={loading} type="submit">
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-              {loading ? "시화 만드는 중" : "시화 만들기"}
+            <button className={`button-primary${submitted || run.running ? "" : " imagegen-nudge"}`} disabled={run.running} type="submit">
+              {run.running ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+              {run.running ? `생성 중 ${Math.round(run.progress)}%` : "시화 만들기"}
             </button>
-            <button className="button-secondary" type="button" onClick={reset}>
+            <button className="button-secondary" disabled={run.running} type="button" onClick={reset}>
               <RotateCcw size={18} />
               초기화
             </button>
@@ -146,11 +153,15 @@ export function PoetryPictureWorkspace({ app, spec }: PoetryPictureWorkspaceProp
                   <p>시화 만들기를 누르면 입력한 시와 함께 그림이 채워져요.</p>
                 </div>
               )}
-              {loading ? (
-                <div className="poetry-art-loading">
-                  <Loader2 className="animate-spin" size={22} />
-                  <span>시의 장면을 그리는 중</span>
-                </div>
+              {run.running ? (
+                <ImageGenProgress
+                  progress={run.progress}
+                  remainSeconds={run.remainSeconds}
+                  stepIndex={run.stepIndex}
+                  steps={POETRY_GEN_STEPS}
+                  title="시화 그리는 중"
+                  variant="overlay"
+                />
               ) : null}
             </div>
 

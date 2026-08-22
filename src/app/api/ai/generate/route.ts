@@ -244,9 +244,10 @@ function buildConceptApiFallback(values: Record<string, string>, fallback: MvpOu
 }
 
 function buildConceptFallbackPayload(topic: string, context: string, sourceSentence: string, level: string, isDetailed: boolean) {
-  const makePayload = (lead: string, answerBlocks: Record<string, unknown>[]) => ({
+  const makePayload = (lead: string, answerBlocks: Record<string, unknown>[], emoji: string) => ({
     title: buildSafeConceptTitle(topic),
     lead,
+    emoji,
     cards: answerBlocks.map((block) => {
       const typed = block as { title?: string; body?: string; items?: string[]; rows?: { label: string; value: string }[] };
       return {
@@ -293,6 +294,11 @@ function buildConceptFallbackPayload(topic: string, context: string, sourceSente
         title: "확인하기",
         items: ["경도는 동쪽·서쪽 위치를 나타낸다고 말할 수 있어요.", "본초자오선이 경도의 기준선이라는 점을 기억할 수 있어요.", "위도와 경도의 차이를 한 문장으로 설명할 수 있어요."],
       },
+      {
+        type: "question",
+        title: "이어서 물어보기",
+        items: ["시차는 왜 생기나요?", "우리나라의 경도는 몇 도인가요?"],
+      },
     ];
     if (isDetailed) {
       blocks.splice(3, 0, {
@@ -301,7 +307,7 @@ function buildConceptFallbackPayload(topic: string, context: string, sourceSente
         body: sourceSentence ? `문장 속 "${sourceSentence}"에서 경도는 위치를 더 정확히 나타내기 위해 쓰인 말이에요.` : `${context}에서 경도는 지구 위 장소의 위치를 더 정확히 말할 때 쓰입니다.`,
       });
     }
-    return makePayload(lead, blocks);
+    return makePayload(lead, blocks, "🧭");
   }
 
   if (topic.includes("위도")) {
@@ -329,7 +335,8 @@ function buildConceptFallbackPayload(topic: string, context: string, sourceSente
         links: [],
       },
       { type: "check", title: "확인하기", items: ["위도는 북쪽·남쪽 위치를 나타낸다고 말할 수 있어요.", "적도가 위도의 기준선이라는 점을 기억할 수 있어요.", "위도와 경도의 차이를 한 문장으로 설명할 수 있어요."] },
-    ]);
+      { type: "question", title: "이어서 물어보기", items: ["적도 근처는 왜 더운가요?", "우리나라의 위도는 몇 도인가요?"] },
+    ], "🌍");
   }
 
   if (topic.includes("증발")) {
@@ -341,9 +348,9 @@ function buildConceptFallbackPayload(topic: string, context: string, sourceSente
         title: "증발이 일어나는 흐름",
         diagramType: "flow",
         nodes: [
-          { label: "액체 물", description: "처음에는 눈에 보이는 물입니다." },
-          { label: "수증기", description: "기체 상태로 바뀝니다." },
-          { label: "공기 중", description: "주변 공기와 섞입니다." },
+          { label: "액체 물", description: "처음에는 눈에 보이는 물입니다.", role: "input" },
+          { label: "수증기", description: "기체 상태로 바뀝니다.", role: "process" },
+          { label: "공기 중", description: "주변 공기와 섞입니다.", role: "output" },
         ],
         links: [
           { from: "액체 물", to: "수증기", label: "상태 변화" },
@@ -352,7 +359,8 @@ function buildConceptFallbackPayload(topic: string, context: string, sourceSente
       },
       { type: "example", title: "생활 예시", body: "젖은 수건이 시간이 지나며 마르는 것은 물이 증발해서 공기 중으로 퍼지기 때문이에요." },
       { type: "check", title: "확인하기", items: ["증발은 액체가 기체로 바뀌는 현상이라고 말할 수 있어요.", "물이 사라진 것이 아니라 모습이 바뀐 것이라고 설명할 수 있어요.", "젖은 수건이 마르는 까닭을 증발과 연결할 수 있어요."] },
-    ]);
+      { type: "question", title: "이어서 물어보기", items: ["끓음과 증발은 뭐가 다른가요?", "추운 날에도 빨래가 마르나요?"] },
+    ], "💧");
   }
 
   const lead = `‘${topic}’은 ${context}에서 중요한 뜻을 가진 말이에요. 앞뒤 문장이나 수업 장면과 함께 보면 무엇을 가리키는지 더 쉽게 알 수 있어요.`;
@@ -360,7 +368,8 @@ function buildConceptFallbackPayload(topic: string, context: string, sourceSente
     { type: "paragraph", title: "핵심 뜻", body: lead },
     { type: "example", title: "수업 문장에 넣어 보기", body: sourceSentence ? `문장 속 "${sourceSentence}"에서 ‘${topic}’이 무엇을 가리키는지 앞뒤 내용과 함께 살펴보면 좋아요.` : `${context}에서 ‘${topic}’이 어떤 뜻으로 쓰였는지 한 문장으로 바꾸어 생각해요.` },
     { type: "check", title: "확인하기", items: [`‘${topic}’의 뜻을 한 문장으로 말할 수 있어요.`, `수업 문장 안에서 ‘${topic}’이 어떤 역할을 하는지 찾을 수 있어요.`, "비슷한 말과 헷갈리는 점을 하나 말할 수 있어요."] },
-  ]);
+    { type: "question", title: "이어서 물어보기", items: [`‘${topic}’${hasFinalConsonant(topic) ? "과" : "와"} 비슷한 말은 뭐가 있나요?`, `‘${topic}’${hasFinalConsonant(topic) ? "은" : "는"} 어디에서 볼 수 있나요?`] },
+  ], "📖");
 }
 
 function buildSafeConceptTitle(topic: string) {
@@ -502,6 +511,7 @@ function conceptAnswerSchema() {
       },
       title: { type: "string" },
       lead: { type: "string" },
+      emoji: { type: "string" },
       answerBlocks: {
         type: "array",
         minItems: 3,
@@ -565,8 +575,12 @@ function conceptAnswerSchema() {
                 properties: {
                   label: { type: "string" },
                   description: { type: "string" },
+                  role: {
+                    type: "string",
+                    enum: ["", "input", "process", "output"],
+                  },
                 },
-                required: ["label", "description"],
+                required: ["label", "description", "role"],
               },
             },
             links: {
@@ -594,7 +608,7 @@ function conceptAnswerSchema() {
         items: { type: "string" },
       },
     },
-    required: ["answerMeta", "title", "lead", "answerBlocks", "notes"],
+    required: ["answerMeta", "title", "lead", "emoji", "answerBlocks", "notes"],
   };
 }
 
@@ -616,26 +630,33 @@ async function generateText(
     },
     body: JSON.stringify({
       model: process.env.OPENAI_TEXT_MODEL || "gpt-5-mini",
-      ...(isQuestionHelper ? { reasoning: { effort: "low" } } : {}),
+      ...(isQuestionHelper || isConceptExplainer ? { reasoning: { effort: "low" } } : {}),
       input: [
         {
           role: "system",
           content: isConceptExplainer
             ? [
                 "You are a Korean concept explanation engine for students who are studying without a teacher beside them.",
-                "Return only compact JSON with answerMeta, title, lead, answerBlocks, notes.",
+                "Return only compact JSON with answerMeta, title, lead, emoji, answerBlocks, notes.",
                 "The student enters a topic or sentence, where they saw it, lesson context, grade level, and either a concise or detailed explanation preference.",
                 "Answer the student's question directly and completely enough for self-study. Do not repeat the question as the title.",
+                "STRICTLY match every word to the grade level. 초등 저학년/초등 고학년: everyday Korean words only — never use ATP, NADPH, 광계, 캘빈 회로, ion names, or chemical formulas like H2O, CO2, C6H12O6; write 물, 이산화탄소, 포도당 instead, and skip sub-steps that belong to secondary school. 중학생: basic formulas like H2O and CO2 are fine, but no university-level terms. 고등학생: full curriculum terms are fine.",
+                "emoji is exactly one emoji character that instantly evokes the concept (증발 → 💧, 광합성 → 🌿, 경도 → 🧭). No letters or words.",
                 "The title must not attach Korean particles directly to an unquoted term. Use a safe title like '‘경도’는 동서 위치를 나타내는 값이에요' or a complete explanation sentence.",
                 "Never write malformed particles such as '경도은', '위도은', or '증발는'.",
-                "The lead must begin with the explanation itself, not with phrases like '이 질문은', '학생 질문에 맞춰', or '쉽게 설명하면'.",
-                "Use answerBlocks flexibly. Choose paragraph, example, table, chart, diagram, or check blocks only when they help the student understand.",
+                "The lead must begin with the explanation itself, not with phrases like '이 질문은', '학생 질문에 맞춰', or '쉽게 설명하면'. Keep the lead to 1-2 sentences; details belong in answerBlocks, not the lead.",
+                "Use answerBlocks flexibly. Choose paragraph, example, table, chart, diagram, check, or question blocks only when they help the student understand.",
                 "For comparisons, parts, categories, or clear relationships, use a table block with specific labels. Do not use generic row labels like '무엇을 보나요?', '수업 예시', or '헷갈리는 점'.",
                 "For numeric change, order-by-amount, frequency, score, ratio, or simple measured values, use a chart block with chartType bar or line.",
                 "For longitude or latitude, use a diagram block with diagramType grid and explain equator, prime meridian, north-south, and east-west correctly.",
-                "For processes, cycles, cause-effect, structure, or transformations, use a diagram block with diagramType flow, cycle, or compare.",
+                "For processes, cause-effect, structure, or transformations, use a diagram block with diagramType flow. The renderer lays nodes out from links, so links must describe the true structure: several input nodes may all point to one process node, and one process node may point to several output nodes. Never chain independent inputs one after another.",
+                "Give every diagram node a role: input for what goes in or starts, process for what transforms or happens, output for what comes out or results. Use an empty role only when none fits.",
+                "Use diagramType cycle only when the last stage truly returns to the first (물의 순환, 계절). A one-way process is flow, not cycle. Use compare for exactly two contrasted things, and give each node a description.",
                 "Never output raw SVG, HTML, CSS, JavaScript, or image data. For diagrams, output only nodes and links.",
                 "Do not invent numeric values just to create a chart. Use chart only when the student's question or explanation naturally contains safe simple numbers.",
+                "A check block is a self-quiz: 2-4 short questions the student answers by themselves. Put the answers to those questions in notes, not in the check items.",
+                "You may end with one question block whose items are 2-3 short follow-up questions the student would naturally ask next (each under 25 characters, ending with '?'). Leave its body empty.",
+                "notes are shown to the student as 공부 팁: study tips plus the answers to the check questions. Never leave notes as empty strings.",
                 "For detailed answers, improve precision, examples, misconceptions, and visual structure; do not add irrelevant tables or diagrams.",
                 "Do not force every answer into the same template. Use 3 to 5 blocks based on the student's input.",
                 "Explain in Korean at the student's grade level with clear meaning, class-context examples, common confusion, and a self-check when useful.",
@@ -665,7 +686,7 @@ async function generateText(
             principle,
             values,
             instruction: isConceptExplainer
-              ? "학생이 혼자 읽고 이해할 수 있는 답변을 만든다. 입력된 개념, 원문, 수업 맥락을 구분해서 answerMeta에 담고 설명문, 표, 예시, 차트, 도식, 확인 중 필요한 블록만 골라 answerBlocks에 담는다. raw SVG 문자열은 만들지 않는다."
+              ? "학생이 혼자 읽고 이해할 수 있는 답변을 만든다. 입력된 개념, 원문, 수업 맥락을 구분해서 answerMeta에 담고 설명문, 표, 예시, 차트, 도식, 확인, 다음 질문 중 필요한 블록만 골라 answerBlocks에 담는다. 학년 눈높이보다 어려운 용어는 절대 쓰지 않는다. 개념을 나타내는 이모지 1개를 emoji에 담고, 도식 노드에는 role(input/process/output)을 표시한다. 확인 문제의 답과 공부 팁은 notes에 담는다. raw SVG 문자열은 만들지 않는다."
               : isQuestionHelper
                 ? "교사가 바로 인쇄해 나눠줄 학습지를 만든다. title, grade, subject, objective를 채우고, problems에 5~6개의 채점 가능한 문항을 담는다. 각 문항은 type(빈칸·단답형·선택형·서술형·참거짓·짝짓기), prompt(학생이 푸는 문제), 필요 시 choices나 pairs, answer(정답 또는 예시 답안), explanation(해설·채점 기준), points(정수, 합계 약 100)를 갖는다. 빈칸 문항은 prompt 안에 ____ 로 빈칸을 표시한다. 조사(을/를, 은/는, 과/와)를 정확히 쓴다."
               : undefined,
@@ -684,6 +705,7 @@ async function generateText(
               lead: "string",
               ...(isConceptExplainer
                 ? {
+                    emoji: "string, exactly one emoji",
                     answerBlocks: [
                       {
                         type: "paragraph | example | table | steps | check | question | chart | diagram",
@@ -695,7 +717,7 @@ async function generateText(
                         data: [{ label: "string", value: "number" }],
                         unit: "string, empty when unused",
                         diagramType: "flow | cycle | compare | grid, empty when unused",
-                        nodes: [{ label: "string", description: "string" }],
+                        nodes: [{ label: "string", description: "string", role: "input | process | output, empty when unsure" }],
                         links: [{ from: "string", to: "string", label: "string" }],
                       },
                     ],
@@ -790,12 +812,19 @@ function sanitizeConceptResult(result: unknown, values: Record<string, string>) 
     studentIntent: typeof currentMeta.studentIntent === "string" ? currentMeta.studentIntent.trim() : values.length || "",
   };
 
-  if (term.includes("경도") || term.includes("위도") || term.includes("증발")) {
+  if (term === "경도" || term === "위도" || term === "증발") {
     output.title = buildSafeConceptTitle(term);
   } else if (typeof output.title === "string") {
     output.title = fixConceptTitle(output.title, term);
   } else {
     output.title = buildSafeConceptTitle(term);
+  }
+
+  const emoji = typeof output.emoji === "string" ? output.emoji.trim() : "";
+  if (!emoji || emoji.length > 8 || /[A-Za-z0-9가-힣]/.test(emoji)) {
+    delete output.emoji;
+  } else {
+    output.emoji = emoji;
   }
 
   return output;

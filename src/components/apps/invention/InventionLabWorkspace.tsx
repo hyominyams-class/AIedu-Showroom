@@ -6,13 +6,18 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
+import { ImageGenProgress, ImageGenStep, useImageGenRun } from "@/components/mvp/ImageGenProgress";
+import { StyleSelect } from "@/components/mvp/StyleSelect";
+import { INVENTION_STYLE_OPTIONS, findInventionStyle } from "@/components/apps/invention/inventionStyles";
 import {
   MvpState,
   applyStateToOutput,
   buildLocalOutput,
   createDefaultState,
   getPrimary,
+  loadImageGenerated,
   loadMvpState,
+  saveImageGenerated,
   saveMvpState,
 } from "@/components/mvp/MvpStorage";
 
@@ -24,15 +29,33 @@ type InventionLabWorkspaceProps = {
 const DEFAULT_INVENTION_SKETCH = "/visuals/sample-uploads/student-smart-planter-sketch.png";
 const INVENTION_POSTER_IMAGE = "/visuals/invention/auto-watering-planter-poster.png";
 
+const INVENTION_GEN_STEPS: ImageGenStep[] = [
+  { label: "스케치 읽기", caption: "스케치의 모양과 부품을 살펴봅니다." },
+  { label: "기능 배치", caption: "핵심 기능을 그림 속 장치로 옮깁니다." },
+  { label: "시안 그리기", caption: "포스터와 실배치 장면을 그립니다." },
+  { label: "3장 마무리", caption: "시안 3장의 색과 글자를 다듬습니다." },
+];
+
+const INVENTION_GEN_DURATION = 4400;
+
 export function InventionLabWorkspace({ app, spec }: InventionLabWorkspaceProps) {
   const router = useRouter();
   const [state, setState] = useState<MvpState>(() => loadMvpState(app, spec));
-  const [loading, setLoading] = useState(false);
+  const [generated, setGenerated] = useState(false);
   const [notice, setNotice] = useState("");
+  const run = useImageGenRun(INVENTION_GEN_STEPS.length, INVENTION_GEN_DURATION);
 
   const values = state.values;
   const primary = useMemo(() => getPrimary(values, app.title), [app.title, values]);
   const sketchPreview = values.uploadDataUrl || DEFAULT_INVENTION_SKETCH;
+  const style = findInventionStyle(values.style);
+
+  // 이미지를 만든 적이 있으면 생성 유도 표시를 멈춘다.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    setGenerated(loadImageGenerated(app.slug));
+  }, [app.slug]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!notice) return;
@@ -77,36 +100,41 @@ export function InventionLabWorkspace({ app, spec }: InventionLabWorkspaceProps)
     }
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
+    if (run.running) return;
 
-    const current = loadMvpState(app, spec);
-    const nextOutput = {
-      ...buildLocalOutput(app, spec, current.values),
-      imageUrl: INVENTION_POSTER_IMAGE,
-      source: "local" as const,
-      updatedAt: new Date().toISOString(),
-    };
+    run.start(() => {
+      const current = loadMvpState(app, spec);
+      const nextOutput = {
+        ...buildLocalOutput(app, spec, current.values),
+        imageUrl: INVENTION_POSTER_IMAGE,
+        source: "local" as const,
+        updatedAt: new Date().toISOString(),
+      };
 
-    const nextBase = {
-      ...current,
-      output: nextOutput,
-    };
-    const next = {
-      ...nextBase,
-      output: applyStateToOutput(app, spec, nextBase),
-    };
-    saveMvpState(app.slug, next);
-    setState(next);
-    setLoading(false);
-    router.push(`/apps/${app.slug}/result`);
+      const nextBase = {
+        ...current,
+        output: nextOutput,
+      };
+      const next = {
+        ...nextBase,
+        output: applyStateToOutput(app, spec, nextBase),
+      };
+      saveMvpState(app.slug, next);
+      saveImageGenerated(app.slug, true);
+      setState(next);
+      setGenerated(true);
+      router.push(`/apps/${app.slug}/result`);
+    });
   }
 
   function reset() {
     const next = createDefaultState(app, spec);
     saveMvpState(app.slug, next);
+    saveImageGenerated(app.slug, false);
     setState(next);
+    setGenerated(false);
   }
 
   function saveDraft() {
@@ -175,15 +203,23 @@ export function InventionLabWorkspace({ app, spec }: InventionLabWorkspaceProps)
             <input value={values.feature ?? ""} placeholder="예: 흙이 마르면 자동으로 물을 줍니다." onChange={(event) => updateValue("feature", event.target.value)} />
           </label>
 
+          <StyleSelect
+            className="invention-style-select"
+            label="이미지 스타일"
+            options={INVENTION_STYLE_OPTIONS}
+            value={style.id}
+            onChange={(id) => updateValue("style", id)}
+          />
+
           <div className="mvp-action-row invention-action-row">
-            <button className="button-primary" disabled={loading} type="submit">
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-              {loading ? "생성 중" : "이미지 생성하기"}
+            <button className={`button-primary${generated || run.running ? "" : " imagegen-nudge"}`} disabled={run.running} type="submit">
+              {run.running ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+              {run.running ? `생성 중 ${Math.round(run.progress)}%` : "이미지 생성하기"}
             </button>
-            <button className="button-secondary" type="button" onClick={saveDraft}>
+            <button className="button-secondary" disabled={run.running} type="button" onClick={saveDraft}>
               저장
             </button>
-            <button className="button-secondary" type="button" onClick={reset}>
+            <button className="button-secondary" disabled={run.running} type="button" onClick={reset}>
               <RotateCcw size={18} />
               초기화
             </button>
@@ -214,7 +250,17 @@ export function InventionLabWorkspace({ app, spec }: InventionLabWorkspaceProps)
                 <strong>{primary}</strong>
               </div>
               <p>{values.feature || "핵심 기능을 적으면 포스터에 함께 담겨요."}</p>
-              <span className="invention-poster-hint">만들기를 누르면 예시 발명 이미지가 결과 화면에 나타나요.</span>
+              <span className="invention-poster-hint">시안 3장은 {style.label}부터 한 장씩 볼 수 있어요.</span>
+              {run.running ? (
+                <ImageGenProgress
+                  progress={run.progress}
+                  remainSeconds={run.remainSeconds}
+                  stepIndex={run.stepIndex}
+                  steps={INVENTION_GEN_STEPS}
+                  title="시안 3장 그리는 중"
+                  variant="overlay"
+                />
+              ) : null}
             </div>
           </div>
         </section>
