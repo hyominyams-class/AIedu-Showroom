@@ -238,6 +238,11 @@ function AppLightbox({ app, onClose, onPrevious, onNext }: AppLightboxProps) {
                 <span className={`lightbox-difficulty-chip ${lightboxDifficultyClass[app.difficulty]}`}>난이도 {app.difficulty}</span>
                 <span className="lightbox-chip">{app.category}</span>
                 <span className="lightbox-chip">{app.targetGrade}</span>
+                {app.gasRecommended ? (
+                  <span className="lightbox-chip is-gas" title="구글 앱스 스크립트로 따라 만들기 좋아요">
+                    GAS 추천
+                  </span>
+                ) : null}
                 {isMaintenance ? <span className="lightbox-chip is-maintenance">점검 중</span> : null}
               </div>
               <Dialog.Title id="app-lightbox-title" className="lightbox-title">{app.title}</Dialog.Title>

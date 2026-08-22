@@ -44,6 +44,7 @@ export type AppItem = {
   targetGrade: string;
   difficulty: Difficulty;
   status?: AppStatus;
+  gasRecommended?: boolean;
   buildBasis: string;
   lessonUse: string;
   demoType: string;
@@ -885,6 +886,262 @@ const allApps: AppItem[] = [
     },
   },
   {
+    slug: "seat-shuffle-picker",
+    title: "우리 반 자리 뽑기",
+    category: "앱스 스크립트",
+    shortDescription:
+      "명렬표 시트의 조건을 지키며 자리를 뽑고, 결과가 좌석표와 기록 시트에 쌓입니다.",
+    longDescription:
+      "앞자리 배려, 떼어놓을 짝, 고정 자리 조건을 명렬표 시트에서 관리하고 버튼 한 번으로 자리를 뽑습니다. 뽑은 결과는 좌석표 탭에 바로 그려지고, 회차별 실행 기록이 시트에 한 줄씩 남습니다. 자리 두 개를 눌러 서로 바꾸는 미세 조정도 됩니다.",
+    thumbnail: "/visuals/generated-thumbnails/seat-shuffle-picker.png",
+    previewImages: [
+      "/visuals/generated-thumbnails/seat-shuffle-picker.png",
+      "/visuals/generated-thumbnails/seat-shuffle-picker-sheet.png",
+    ],
+    tags: ["자리 배치", "명렬표", "학급 운영"],
+    keywords: ["명렬표 시트 연동", "앞자리 배려", "떼어놓은 짝", "회차 기록"],
+    targetGrade: "초1-고2",
+    difficulty: "하",
+    gasRecommended: true,
+    buildBasis: "스프레드시트 명렬표와 뽑기 스크립트",
+    lessonUse: "자리 바꾸는 날 학급 운영",
+    demoType: "시트 연동 보드",
+    route: "/apps/seat-shuffle-picker",
+    actionLabel: "자리 뽑기",
+    fields: [
+      {
+        id: "topic",
+        label: "학급",
+        type: "text",
+        placeholder: "예: 3학년 2반",
+      },
+      {
+        id: "level",
+        label: "지킬 조건",
+        type: "select",
+        options: ["앞자리 배려", "떼어놓을 짝", "고정 자리"],
+      },
+      {
+        id: "notes",
+        label: "참고 사항",
+        type: "textarea",
+        placeholder: "자리를 정할 때 고려할 점을 적어 주세요.",
+      },
+    ],
+    loadingMessages: ["명렬표를 읽는 중", "조건을 확인하는 중", "자리를 뽑는 중"],
+    mockResult: {
+      title: "3회차 자리 배치",
+      summary: "명렬표 조건을 지킨 새 좌석표가 완성됩니다.",
+      highlights: ["앞자리 배려 반영", "짝 분리 반영", "기록 자동 저장"],
+      cards: [
+        {
+          title: "좌석표",
+          body: "24명이 3개 분단, 네 줄 자리에 배치됩니다.",
+        },
+        {
+          title: "조건",
+          body: "앞자리 배려 학생은 첫째·둘째 줄에만 배치됩니다.",
+        },
+        {
+          title: "기록",
+          body: "실행 시각과 반영한 조건이 시트에 한 줄로 남습니다.",
+        },
+      ],
+    },
+  },
+  {
+    slug: "class-suggestion-box",
+    title: "학급 건의함",
+    category: "앱스 스크립트",
+    shortDescription:
+      "별명으로 보낸 건의가 접수 시트에 쌓이고, 승인 체크한 건의만 게시판에 올라옵니다.",
+    longDescription:
+      "학생이 별명으로 건의를 보내면 접수 시트에 한 줄씩 쌓입니다. 시트에서 승인 체크를 켜면 그 건의만 학급 게시판에 공개되고, 답변 열에 적어 둔 내용이 선생님 답변으로 함께 보입니다. 분류별 접수·게시 현황도 시트 함수로 집계됩니다.",
+    thumbnail: "/visuals/generated-thumbnails/class-suggestion-box.png",
+    previewImages: [
+      "/visuals/generated-thumbnails/class-suggestion-box.png",
+      "/visuals/generated-thumbnails/class-suggestion-box-sheet.png",
+    ],
+    tags: ["건의함", "학급 소통", "승인 게시"],
+    keywords: ["익명 제출", "승인 체크 공개", "선생님 답변", "분류 집계"],
+    targetGrade: "초3-고2",
+    difficulty: "하",
+    gasRecommended: true,
+    buildBasis: "접수 시트와 승인 체크 스크립트",
+    lessonUse: "학급 자치와 건의 문화 만들기",
+    demoType: "시트 연동 게시판",
+    fields: [
+      {
+        id: "topic",
+        label: "별명",
+        type: "text",
+        placeholder: "예: 궁금이",
+      },
+      {
+        id: "level",
+        label: "분류",
+        type: "select",
+        options: ["수업", "급식", "시설", "행사", "기타"],
+      },
+      {
+        id: "notes",
+        label: "건의 내용",
+        type: "textarea",
+        placeholder: "우리 반을 위해 바꾸고 싶은 것을 적어 주세요.",
+      },
+    ],
+    route: "/apps/class-suggestion-box",
+    actionLabel: "건의 보내기",
+    loadingMessages: ["건의를 접수하는 중", "시트에 기록하는 중"],
+    mockResult: {
+      title: "우리 반 건의 게시판",
+      summary: "승인된 건의와 선생님 답변이 게시판에 모입니다.",
+      highlights: ["익명 접수", "승인 후 공개", "답변 표시"],
+      cards: [
+        {
+          title: "접수",
+          body: "별명과 분류, 건의 내용이 시트에 한 줄로 쌓입니다.",
+        },
+        {
+          title: "승인",
+          body: "승인 체크를 켠 건의만 게시판에 올라옵니다.",
+        },
+        {
+          title: "답변",
+          body: "답변 열에 적은 내용이 건의 카드 아래에 붙습니다.",
+        },
+      ],
+    },
+  },
+  {
+    slug: "boardgame-rental-desk",
+    title: "보드게임 대여 장부",
+    category: "앱스 스크립트",
+    shortDescription:
+      "모둠이 보드게임을 빌리고 반납하는 기록이 장부 시트에 쌓이고 남은 수량이 자동으로 맞춰집니다.",
+    longDescription:
+      "학급 보드게임 선반에서 게임을 고르고 빌리는 모둠을 누르면 대여 기록 시트에 한 줄이 추가됩니다. 반납 체크를 켜면 반납 시각이 기록되고 남은 수량이 다시 늘어납니다. 오래 안 돌아온 게임은 대여 중 목록에서 따로 표시됩니다.",
+    thumbnail: "/visuals/generated-thumbnails/boardgame-rental-desk.png",
+    previewImages: [
+      "/visuals/generated-thumbnails/boardgame-rental-desk.png",
+      "/visuals/generated-thumbnails/boardgame-rental-desk-sheet.png",
+    ],
+    tags: ["대여 장부", "학급 물품", "보드게임"],
+    keywords: ["대여·반납 기록", "남은 수량 자동", "연체 표시", "모둠별 장부"],
+    targetGrade: "초1-고2",
+    difficulty: "하",
+    gasRecommended: true,
+    buildBasis: "장부 시트와 수량 계산 스크립트",
+    lessonUse: "쉬는 시간 학급 물품 관리",
+    demoType: "시트 연동 장부",
+    route: "/apps/boardgame-rental-desk",
+    actionLabel: "대여 시작하기",
+    fields: [
+      {
+        id: "topic",
+        label: "게임",
+        type: "select",
+        options: ["할리갈리", "루미큐브", "부루마불", "젠가", "도블", "우노"],
+      },
+      {
+        id: "level",
+        label: "빌리는 모둠",
+        type: "select",
+        options: ["1모둠", "2모둠", "3모둠", "4모둠", "5모둠", "6모둠"],
+      },
+      {
+        id: "notes",
+        label: "메모",
+        type: "textarea",
+        placeholder: "빌릴 때 남길 메모를 적어 주세요.",
+      },
+    ],
+    loadingMessages: ["장부를 여는 중", "대여를 기록하는 중"],
+    mockResult: {
+      title: "보드게임 대여 장부",
+      summary: "대여와 반납이 장부 시트에 시각과 함께 기록됩니다.",
+      highlights: ["대여 기록", "반납 체크", "남은 수량"],
+      cards: [
+        {
+          title: "대여",
+          body: "게임과 모둠을 고르면 장부에 한 줄이 추가됩니다.",
+        },
+        {
+          title: "반납",
+          body: "반납 체크를 켜면 반납 시각이 함께 기록됩니다.",
+        },
+        {
+          title: "수량",
+          body: "남은 수량이 보유 수에서 대여 중 수를 빼 계산됩니다.",
+        },
+      ],
+    },
+  },
+  {
+    slug: "live-class-poll",
+    title: "우리 반 실시간 투표",
+    category: "앱스 스크립트",
+    shortDescription:
+      "학생들이 투표할 때마다 응답 시트에 쌓이고 막대 그래프가 실시간으로 올라갑니다.",
+    longDescription:
+      "질문 시트에 적어 둔 투표를 골라 한 표를 던지면 응답 시트에 한 줄씩 쌓이고 집계 그래프가 바로 움직입니다. 다른 학생들의 표가 들어오는 동안 그래프가 실시간으로 갱신되고, 마감 체크를 켜면 투표가 닫히며 결과가 고정됩니다.",
+    thumbnail: "/visuals/generated-thumbnails/live-class-poll.png",
+    previewImages: [
+      "/visuals/generated-thumbnails/live-class-poll.png",
+      "/visuals/generated-thumbnails/live-class-poll-sheet.png",
+    ],
+    tags: ["실시간 투표", "수업 참여", "학급 회의"],
+    keywords: ["응답 시트 누적", "실시간 그래프", "마감 체크", "집계 함수"],
+    targetGrade: "초2-고2",
+    difficulty: "하",
+    gasRecommended: true,
+    buildBasis: "응답 시트와 집계 스크립트",
+    lessonUse: "수업 도입 의견 모으기와 학급 회의",
+    demoType: "시트 연동 투표",
+    route: "/apps/live-class-poll",
+    actionLabel: "투표 시작하기",
+    fields: [
+      {
+        id: "topic",
+        label: "질문",
+        type: "text",
+        placeholder: "예: 가을 현장체험학습, 어디로 갈까요?",
+      },
+      {
+        id: "level",
+        label: "보기 수",
+        type: "select",
+        options: ["2개", "3개", "4개"],
+      },
+      {
+        id: "notes",
+        label: "보기 내용",
+        type: "textarea",
+        placeholder: "보기를 줄마다 하나씩 적어 주세요.",
+      },
+    ],
+    loadingMessages: ["질문 시트를 읽는 중", "응답을 집계하는 중"],
+    mockResult: {
+      title: "실시간 투표 집계",
+      summary: "응답이 쌓일 때마다 막대 그래프가 갱신됩니다.",
+      highlights: ["한 사람 한 표", "실시간 집계", "마감 고정"],
+      cards: [
+        {
+          title: "투표",
+          body: "보기를 누르면 응답 시트에 한 줄이 추가됩니다.",
+        },
+        {
+          title: "집계",
+          body: "보기별 표수가 시트 함수로 계산되어 그래프에 반영됩니다.",
+        },
+        {
+          title: "마감",
+          body: "마감 체크를 켜면 투표가 닫히고 결과가 고정됩니다.",
+        },
+      ],
+    },
+  },
+  {
     slug: "practical-consumer-mission",
     title: "실과 합리적 소비 실천",
     category: "실과",
@@ -1367,6 +1624,58 @@ const demoExamples: Record<string, DemoExample> = {
     artifactTitle: "자동 급수 화분",
     artifactSubtitle: "발명품 포스터 · 실사 사용 예시",
     artifactNotes: ["포스터", "교실 사용 장면", "집 베란다 사용 장면"],
+  },
+  "seat-shuffle-picker": {
+    values: {
+      topic: "3학년 2반",
+      level: "앞자리 배려",
+      notes: "시력이 나쁜 학생 두 명은 앞줄에, 자주 다투는 짝은 떨어뜨립니다.",
+    },
+    resultTitle: "3회차 자리 배치",
+    resultLead: "명렬표 조건을 지킨 좌석표가 완성되고 기록 시트에 한 줄 남습니다.",
+    artifactLabel: "좌석표",
+    artifactTitle: "우리 반 자리 뽑기",
+    artifactSubtitle: "24명 · 3개 분단 · 조건 반영",
+    artifactNotes: ["앞자리 배려", "짝 분리", "회차 기록"],
+  },
+  "class-suggestion-box": {
+    values: {
+      topic: "궁금이",
+      level: "수업",
+      notes: "수학 시간에 모둠 화이트보드를 더 자주 쓰고 싶어요.",
+    },
+    resultTitle: "우리 반 건의 게시판",
+    resultLead: "승인 체크한 건의만 게시판에 올라오고 답변이 함께 붙습니다.",
+    artifactLabel: "건의 게시판",
+    artifactTitle: "학급 건의함",
+    artifactSubtitle: "익명 접수 · 승인 공개 · 답변",
+    artifactNotes: ["접수 시트", "승인 체크", "선생님 답변"],
+  },
+  "boardgame-rental-desk": {
+    values: {
+      topic: "할리갈리",
+      level: "3모둠",
+      notes: "점심시간에 빌리고 청소 시간 전에 반납합니다.",
+    },
+    resultTitle: "보드게임 대여 장부",
+    resultLead: "대여와 반납이 시각과 함께 장부 시트에 쌓입니다.",
+    artifactLabel: "대여 장부",
+    artifactTitle: "보드게임 대여 장부",
+    artifactSubtitle: "8종 12개 · 모둠별 기록",
+    artifactNotes: ["대여 기록", "반납 체크", "남은 수량"],
+  },
+  "live-class-poll": {
+    values: {
+      topic: "가을 현장체험학습, 어디로 갈까요?",
+      level: "4개",
+      notes: "과학관, 미술관, 숲 체험원, 역사 박물관",
+    },
+    resultTitle: "실시간 투표 집계",
+    resultLead: "응답 시트에 표가 쌓일 때마다 그래프가 바로 움직입니다.",
+    artifactLabel: "투표 집계",
+    artifactTitle: "우리 반 실시간 투표",
+    artifactSubtitle: "한 사람 한 표 · 실시간 그래프",
+    artifactNotes: ["응답 누적", "실시간 집계", "마감 체크"],
   },
 };
 

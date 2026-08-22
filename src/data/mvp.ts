@@ -17,7 +17,11 @@ export type MvpKind =
   | "report"
   | "chatbot"
   | "runner"
-  | "adventure";
+  | "adventure"
+  | "seating"
+  | "suggestion"
+  | "rental"
+  | "poll";
 
 export type MvpSpec = {
   kind: MvpKind;
@@ -157,6 +161,46 @@ export const mvpSpecs: Record<string, MvpSpec> = {
     resultLabel: "이미지 결과",
     storage: "download",
     liveAi: "image",
+  },
+  "seat-shuffle-picker": {
+    kind: "seating",
+    promise: "명렬표 조건을 지키며 자리를 뽑아 시트에 기록합니다.",
+    output: "좌석표와 회차별 자리 기록",
+    principle: "명렬표 시트의 배려·짝·고정 조건을 읽어 자리를 뽑고, 좌석표와 기록 탭에 결과를 남깁니다.",
+    focus: ["명렬표 조건", "랜덤 배치", "회차 기록"],
+    workLabel: "자리 뽑기",
+    resultLabel: "좌석표",
+    storage: "local",
+  },
+  "class-suggestion-box": {
+    kind: "suggestion",
+    promise: "건의가 시트에 쌓이고 승인한 건의만 게시판에 올라옵니다.",
+    output: "승인 게시판과 접수 시트",
+    principle: "제출된 건의는 접수 시트에 쌓이고, 승인 체크가 켜진 행만 게시판에 공개됩니다.",
+    focus: ["익명 접수", "승인 공개", "답변 표시"],
+    workLabel: "건의 보내기",
+    resultLabel: "건의 게시판",
+    storage: "local",
+  },
+  "boardgame-rental-desk": {
+    kind: "rental",
+    promise: "대여와 반납이 장부 시트에 기록되고 수량이 자동으로 맞춰집니다.",
+    output: "대여 기록 장부와 남은 수량",
+    principle: "대여할 때 장부에 한 줄이 추가되고, 반납 체크가 켜지면 수량이 다시 늘어납니다.",
+    focus: ["대여 기록", "반납 체크", "수량 계산"],
+    workLabel: "대여 시작",
+    resultLabel: "대여 장부",
+    storage: "local",
+  },
+  "live-class-poll": {
+    kind: "poll",
+    promise: "표가 응답 시트에 쌓일 때마다 그래프가 실시간으로 움직입니다.",
+    output: "실시간 막대 그래프와 응답 시트",
+    principle: "한 사람이 한 표를 던지면 응답 시트에 한 줄이 쌓이고 집계 그래프가 바로 갱신됩니다.",
+    focus: ["응답 누적", "실시간 집계", "마감 체크"],
+    workLabel: "투표 시작",
+    resultLabel: "투표 집계",
+    storage: "local",
   },
 };
 

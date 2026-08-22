@@ -3,10 +3,14 @@ import { notFound, redirect } from "next/navigation";
 import type { ComponentType } from "react";
 import { AdditionCardMatchWorkspace } from "@/components/apps/addition/AdditionCardMatchWorkspace";
 import { AuthorChatbotWorkspace } from "@/components/apps/author/AuthorChatbotWorkspace";
+import { BoardgameRentalWorkspace } from "@/components/apps/rental/BoardgameRentalWorkspace";
 import { ConceptExplainerWorkspace } from "@/components/apps/concept/ConceptExplainerWorkspace";
 import { HistoryTypingGameWorkspace } from "@/components/apps/history/HistoryTypingGameWorkspace";
 import { LiberationAdventureWorkspace } from "@/components/apps/adventure/LiberationAdventureWorkspace";
+import { LivePollWorkspace } from "@/components/apps/poll/LivePollWorkspace";
 import { NeonRhythmRunnerWorkspace } from "@/components/apps/runner/NeonRhythmRunnerWorkspace";
+import { SeatShuffleWorkspace } from "@/components/apps/seating/SeatShuffleWorkspace";
+import { SuggestionBoxWorkspace } from "@/components/apps/suggestion/SuggestionBoxWorkspace";
 import { InventionLabWorkspace } from "@/components/apps/invention/InventionLabWorkspace";
 import { PicturebookSceneWorkspace } from "@/components/apps/picturebook/PicturebookSceneWorkspace";
 import { PoetryPictureWorkspace } from "@/components/apps/poetry/PoetryPictureWorkspace";
@@ -40,6 +44,10 @@ const workspaceBySlug: Record<string, WorkspaceComponent> = {
   "poetry-picture-maker": PoetryPictureWorkspace,
   "picturebook-scene-maker": PicturebookSceneWorkspace,
   "ai-invention-lab": InventionLabWorkspace,
+  "seat-shuffle-picker": SeatShuffleWorkspace,
+  "class-suggestion-box": SuggestionBoxWorkspace,
+  "boardgame-rental-desk": BoardgameRentalWorkspace,
+  "live-class-poll": LivePollWorkspace,
 };
 
 export const dynamicParams = false;
