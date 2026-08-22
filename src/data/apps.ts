@@ -1,5 +1,7 @@
 export type Difficulty = "하" | "중" | "상";
 
+export type AppStatus = "live" | "maintenance";
+
 export type DemoField = {
   id: string;
   label: string;
@@ -41,6 +43,7 @@ export type AppItem = {
   keywords: string[];
   targetGrade: string;
   difficulty: Difficulty;
+  status?: AppStatus;
   buildBasis: string;
   lessonUse: string;
   demoType: string;
@@ -1036,6 +1039,7 @@ const allApps: AppItem[] = [
     keywords: ["질문 만들기 훈련", "AI 질문 평가", "점수+개선 피드백", "탐구 질문"],
     targetGrade: "초4-고2",
     difficulty: "중",
+    status: "maintenance",
     buildBasis: "별도 웹앱 링크",
     lessonUse: "질문 만들기와 탐구 질문 개선",
     demoType: "외부 링크",
@@ -1061,6 +1065,144 @@ const allApps: AppItem[] = [
         {
           title: "개선",
           body: "피드백을 바탕으로 질문을 다시 다듬습니다.",
+        },
+      ],
+    },
+  },
+  {
+    slug: "digital-reading-passport",
+    title: "디지털 독서여권",
+    category: "독서교육",
+    shortDescription:
+      "세계 여러 나라 그림책을 읽고 질문을 만들어 나만의 그림책까지 완성하는 독서 수업 앱입니다.",
+    longDescription:
+      "학생이 여러 나라의 그림책을 읽고 감정 스티커와 한 줄 감상을 남깁니다. 이어서 책 속 나라의 문화를 영상과 사진으로 탐색하고, 궁금한 점을 질문으로 만들어 세계를 넓혀 갑니다. 활동을 마칠 때마다 여권에 도장이 찍히고, 마지막에는 자기 이야기를 그림책으로 창작합니다. 학생 계정은 교사가 관리하고 새 작품은 비공개로 시작합니다.",
+    thumbnail: "/visuals/generated-thumbnails/digital-reading-passport.png",
+    previewImages: [
+      "/visuals/generated-thumbnails/digital-reading-passport.png",
+      "/visuals/landing-previews/digital-reading-passport.png",
+    ],
+    tags: ["세계시민교육", "그림책 읽기", "그림책 창작"],
+    keywords: ["세계 그림책 읽기", "감정 표현과 한 줄 감상", "질문 만들기", "나만의 그림책 창작"],
+    targetGrade: "초5-6",
+    difficulty: "상",
+    buildBasis: "별도 웹앱 링크",
+    lessonUse: "세계시민교육 독서 활동과 창작 수업",
+    demoType: "외부 링크",
+    route: "https://reading-passport-xga6.vercel.app/",
+    externalUrl: "https://reading-passport-xga6.vercel.app/",
+    actionLabel: "독서여권 열기",
+    fields: [],
+    loadingMessages: [],
+    mockResult: {
+      title: "나의 독서 여권",
+      summary:
+        "읽기, 탐색, 질문, 창작 네 활동을 마치면 도장이 모여 한 권의 독서 여권이 됩니다.",
+      highlights: ["그림책 읽기", "질문 만들기", "그림책 창작"],
+      cards: [
+        {
+          title: "읽기",
+          body: "여러 나라 그림책을 읽고 감정과 감상을 남깁니다.",
+        },
+        {
+          title: "탐색",
+          body: "책 속 나라의 문화를 영상과 사진으로 살펴봅니다.",
+        },
+        {
+          title: "창작",
+          body: "자기 이야기를 한 권의 그림책으로 만듭니다.",
+        },
+      ],
+    },
+  },
+  {
+    slug: "national-heritage-map",
+    title: "국가유산 지도",
+    category: "역사",
+    shortDescription:
+      "전남·광주 국가유산을 지도에서 찾아보고 답사 기록을 우리 반 지도에 남기는 앱입니다.",
+    longDescription:
+      "국가유산 오픈API 정보를 지도와 목록으로 함께 봅니다. 시대와 지역, 유형으로 걸러 찾고 위치, 설명, 사진, 로드뷰를 한 화면에서 확인합니다. 학생이 남긴 한줄평과 장소 기록은 교사가 확인한 뒤 우리 반 지도에 올라가고, 가 볼 곳을 담아 두면 날짜별 답사 코스와 이동 거리까지 만들어집니다.",
+    thumbnail: "/visuals/generated-thumbnails/national-heritage-map.png",
+    previewImages: [
+      "/visuals/generated-thumbnails/national-heritage-map.png",
+      "/visuals/landing-previews/national-heritage-map.png",
+    ],
+    tags: ["국가유산", "전남·광주", "답사 기록"],
+    keywords: ["국가유산 오픈API", "지도·로드뷰 탐색", "학생 한줄평", "날짜별 답사 코스"],
+    targetGrade: "초4-중2",
+    difficulty: "상",
+    buildBasis: "별도 웹앱 링크",
+    lessonUse: "지역 국가유산 탐구와 현장 답사",
+    demoType: "외부 링크",
+    route: "https://history-map-chi.vercel.app/",
+    externalUrl: "https://history-map-chi.vercel.app/",
+    actionLabel: "국가유산 지도 열기",
+    fields: [],
+    loadingMessages: [],
+    mockResult: {
+      title: "우리 반 국가유산 지도",
+      summary:
+        "학생이 찾은 유산과 한줄평이 쌓여 우리 지역의 답사 기록이 됩니다.",
+      highlights: ["지도 탐색", "한줄평", "답사 코스"],
+      cards: [
+        {
+          title: "탐색",
+          body: "시대와 지역, 유형으로 걸러 지도와 목록을 함께 봅니다.",
+        },
+        {
+          title: "기록",
+          body: "학생이 올린 장소와 한줄평을 교사가 확인해 지도에 남깁니다.",
+        },
+        {
+          title: "답사",
+          body: "가 볼 곳을 담아 날짜별 코스와 이동 거리를 확인합니다.",
+        },
+      ],
+    },
+  },
+  {
+    slug: "ml-microbit-studio",
+    title: "마이크로비트 머신러닝",
+    category: "머신러닝",
+    shortDescription:
+      "카메라와 마이크로 모은 데이터로 모델을 학습시키고 그 결과를 마이크로비트로 보내는 앱입니다.",
+    longDescription:
+      "제스처, 손 좌표, 자세, 얼굴, 소리 가운데 실습에 맞는 입력을 고르고 직접 샘플을 모아 KNN과 Dense 모델을 학습시킵니다. 학습한 모델을 실시간 화면에서 바로 시험해 보고, 인식 결과를 시리얼 통신으로 마이크로비트에 보내 동작까지 연결합니다. 모델 선택부터 학습, 실행, 장치 연결, 코드 편집까지 다섯 단계로 이어집니다.",
+    thumbnail: "/visuals/generated-thumbnails/ml-microbit-studio.png",
+    previewImages: [
+      "/visuals/generated-thumbnails/ml-microbit-studio.png",
+      "/visuals/landing-previews/ml-microbit-studio.png",
+    ],
+    tags: ["머신러닝", "마이크로비트", "시리얼 통신"],
+    keywords: ["KNN·Dense 모델 학습", "카메라·마이크 입력", "실시간 추론 실험", "micro:bit 시리얼 전송"],
+    targetGrade: "초5-중3",
+    difficulty: "상",
+    buildBasis: "별도 웹앱 링크",
+    lessonUse: "AI 원리 실습과 피지컬 컴퓨팅",
+    demoType: "외부 링크",
+    route: "https://ml-microbit.vercel.app/",
+    externalUrl: "https://ml-microbit.vercel.app/",
+    actionLabel: "AI 스튜디오 열기",
+    fields: [],
+    loadingMessages: [],
+    mockResult: {
+      title: "내가 학습시킨 모델",
+      summary:
+        "직접 모은 샘플로 학습한 모델이 화면에서 동작하고 마이크로비트로 이어집니다.",
+      highlights: ["모델 학습", "실시간 실행", "장치 연결"],
+      cards: [
+        {
+          title: "학습",
+          body: "클래스마다 샘플을 모아 KNN이나 Dense 모델을 학습시킵니다.",
+        },
+        {
+          title: "실행",
+          body: "카메라와 마이크 입력으로 인식 결과를 바로 확인합니다.",
+        },
+        {
+          title: "장치",
+          body: "인식 결과를 시리얼 통신으로 마이크로비트에 보냅니다.",
         },
       ],
     },

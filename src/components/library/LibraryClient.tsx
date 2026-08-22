@@ -169,6 +169,7 @@ type AppLightboxProps = {
 
 function AppLightbox({ app, onClose, onPrevious, onNext }: AppLightboxProps) {
   const spec = getMvpSpec(app);
+  const isMaintenance = app.status === "maintenance";
   const experienceHref = app.externalUrl ?? `/apps/${app.slug}/work`;
   const galleryImages = app.previewImages.length > 0 ? app.previewImages : [app.thumbnail];
   const [imageIndex, setImageIndex] = useState(0);
@@ -237,6 +238,7 @@ function AppLightbox({ app, onClose, onPrevious, onNext }: AppLightboxProps) {
                 <span className={`lightbox-difficulty-chip ${lightboxDifficultyClass[app.difficulty]}`}>난이도 {app.difficulty}</span>
                 <span className="lightbox-chip">{app.category}</span>
                 <span className="lightbox-chip">{app.targetGrade}</span>
+                {isMaintenance ? <span className="lightbox-chip is-maintenance">점검 중</span> : null}
               </div>
               <Dialog.Title id="app-lightbox-title" className="lightbox-title">{app.title}</Dialog.Title>
               <Dialog.Description className="lightbox-description">{app.longDescription}</Dialog.Description>
@@ -256,14 +258,24 @@ function AppLightbox({ app, onClose, onPrevious, onNext }: AppLightboxProps) {
                 </div>
               </dl>
 
+              {isMaintenance ? (
+                <p className="lightbox-maintenance-note">지금은 점검 중이라 앱을 열 수 없습니다. 점검이 끝나면 바로 열립니다.</p>
+              ) : null}
+
               <div className="lightbox-actions showroom-lightbox-actions">
                 <button className="button-secondary lightbox-previous-app" type="button" onClick={onPrevious}>
                   <ArrowLeft size={18} />
                   이전 앱
                 </button>
-                <Link className="button-primary showroom-experience-button" href={experienceHref} target={app.externalUrl ? "_blank" : undefined}>
-                  앱 체험하기
-                </Link>
+                {isMaintenance ? (
+                  <span aria-disabled="true" className="button-primary showroom-experience-button is-maintenance">
+                    점검 중
+                  </span>
+                ) : (
+                  <Link className="button-primary showroom-experience-button" href={experienceHref} target={app.externalUrl ? "_blank" : undefined}>
+                    앱 체험하기
+                  </Link>
+                )}
                 <button className="button-secondary lightbox-next-app" type="button" onClick={onNext}>
                   다음 앱
                   <ArrowRight size={18} />

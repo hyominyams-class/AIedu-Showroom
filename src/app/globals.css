@@ -1267,6 +1267,25 @@ a {
   position: static;
 }
 
+.status-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid rgb(255 255 255 / 0.82);
+  border-radius: 8px;
+  background: var(--coral);
+  padding: 0 11px;
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  box-shadow: 0 12px 24px rgb(16 24 40 / 0.2);
+}
+
 .difficulty-low {
   background: var(--green);
 }
@@ -1524,6 +1543,12 @@ a {
   color: var(--muted);
 }
 
+.lightbox-chip.is-maintenance {
+  border-color: var(--coral);
+  background: var(--coral);
+  color: white;
+}
+
 .lightbox-difficulty-chip {
   border: 1px solid var(--accent);
   background: var(--accent);
@@ -1580,6 +1605,28 @@ a {
   justify-self: center;
   justify-content: center;
   min-width: 190px;
+}
+
+.showroom-experience-button.is-maintenance,
+.showroom-experience-button.is-maintenance:hover {
+  border-color: var(--line);
+  background: var(--surface-strong);
+  color: var(--muted);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.lightbox-maintenance-note {
+  margin-top: 16px;
+  border-left: 4px solid var(--coral);
+  border-radius: 8px;
+  background: #fdeeea;
+  padding: 12px 14px;
+  color: #8e3020;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .notice-strip {

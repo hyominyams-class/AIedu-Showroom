@@ -37,6 +37,7 @@ export function AppCard({ app, priority = false, onSelect }: AppCardProps) {
           className="app-card-image"
         />
         <span className={`difficulty-badge ${difficultyClass[app.difficulty]}`}>{app.difficulty}</span>
+        {app.status === "maintenance" ? <span className="status-badge">점검 중</span> : null}
         <span className="app-card-media-label">
           <span>{app.category}</span>
           <strong>{app.targetGrade}</strong>

@@ -59,3 +59,11 @@ Original prompt: 타자 게임, 카드 뒤집기 게임은 게임 효과가 제�
 - a11y: reduced-motion now covers card/timer flourishes; explicit focus rings on game controls.
 - Verified `npm run lint` + `npm run build`, `verify:games` (0 console errors), and a Playwright sweep of all 9 apps (0 console errors total) + screenshots.
 - Confirmed `next/image` uses `preload` (not deprecated `priority`) per this build's `get-img-props.d.ts`; a review suggesting the reverse was wrong for this custom Next.
+
+## Session: 외부 앱 3종 추가 + Smile 점검 중 표시 (2026-08-22)
+- 쇼룸에 외부 링크 앱 3종을 추가: `digital-reading-passport`(디지털 독서여권, 독서교육/상), `national-heritage-map`(국가유산 지도, 역사/상), `ml-microbit-studio`(마이크로비트 머신러닝, 머신러닝/상). 모두 `externalUrl`로 새 탭에서 열리는 기존 외부 앱 패턴(`class-game-management`)을 따름. 카탈로그 16→19개, 카테고리 13→15개(독서교육·머신러닝 신설).
+- 썸네일/미리보기는 실제 서비스 화면을 Playwright로 캡처(`scripts/capture-external-thumbs.mjs`, `npm run assets:external`). 카드 4:3과 라이트박스 세로 크롭을 모두 견디도록 4:3 프레임으로 통일하고, 앵커 텍스트 기준으로 스크롤 위치를 잡아 재현 가능하게 만듦. ML 스튜디오는 뷰포트 820px에서 "내가 정한 손모양을 직접 가르치는 모델" 패널을 clip 캡처해 21 landmarks 다이어그램이 크롭에서 살아남도록 함.
+- `AppItem`에 `status?: AppStatus`("live" | "maintenance") 추가. Smile은 항목·링크를 그대로 두고 `status: "maintenance"`만 지정.
+- 점검 중 표현: 카드 미디어 우상단 `점검 중` 배지(`.status-badge`), 라이트박스 칩 + 안내 문구, `앱 체험하기` 링크를 비활성 상태로 교체해 점검 중에는 이동 불가.
+- 확인: `npm run lint`(기존 러너/어드벤처 오류 2건만 잔존, 신규 파일 무결), `npm run build`, `npm run verify:games`, 인증 Playwright로 라이브러리 데스크톱/모바일·라이트박스 3종·Smile 점검 상태 캡처, 콘솔 에러 0건.
+- 참고: Next dev 이미지 캐시가 `.next/dev/cache/images`에도 남아 있어 같은 경로의 이미지를 교체하면 `.next/cache/images`와 함께 지워야 새 이미지가 보임. `THUMBNAIL_ASSET_VERSION`은 `src/lib/visuals.ts`와 `next.config.ts` 두 곳에 있으므로 올릴 때 함께 맞춰야 함(이번에는 신규 경로라 올리지 않음).

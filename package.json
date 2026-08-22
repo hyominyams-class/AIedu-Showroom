@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "assets": "node scripts/generate-assets.mjs",
+    "assets:external": "node scripts/capture-external-thumbs.mjs",
     "verify:games": "node scripts/verify-game-mvp.mjs"
   },
   "dependencies": {
