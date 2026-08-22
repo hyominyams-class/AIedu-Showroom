@@ -1,5 +1,14 @@
 "use client";
 
+/* eslint-disable react-hooks/immutability --
+ * The runner keeps its whole world (runner, obstacles, orbs, particles) in a
+ * single object behind `gameRef` and mutates it in place from the rAF loop, at
+ * 60fps. React state holds only the HUD snapshot. The immutability rule reads
+ * every one of those per-frame writes as illegal, so satisfying it would mean
+ * rebuilding the world object each frame — allocation churn in the hot loop for
+ * no behavioural gain. Game flows are covered by `npm run verify:games`.
+ */
+
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play, Pause, RotateCcw, Volume2, VolumeX, Zap } from "lucide-react";

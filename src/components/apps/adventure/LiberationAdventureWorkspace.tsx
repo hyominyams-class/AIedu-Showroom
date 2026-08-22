@@ -384,12 +384,17 @@ export function LiberationAdventureWorkspace({ app, spec }: LiberationAdventureW
   }, []);
 
   /* ---------- typewriter ---------- */
-  useEffect(() => {
-    revealRef.current = 0;
+  // Restart the reveal when the scene changes. Adjusting during render instead
+  // of in an effect means the new scene never paints at the old scene's length.
+  const [typedSceneId, setTypedSceneId] = useState(sceneId);
+  if (typedSceneId !== sceneId) {
+    setTypedSceneId(sceneId);
     setRevealCount(0);
-  }, [sceneId]);
+  }
 
   useEffect(() => {
+    revealRef.current = 0;
+    lastTickRef.current = 0;
     const timer = window.setInterval(() => {
       if (revealRef.current >= fullLen) return;
       revealRef.current = Math.min(fullLen, revealRef.current + (CPS * 30) / 1000);
