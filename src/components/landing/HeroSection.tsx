@@ -16,6 +16,15 @@ const landingPreviewImages: Partial<Record<AppItem["slug"], string>> = {
   "ai-invention-lab": "/visuals/landing-previews/ai-invention-lab.png",
   "picturebook-scene-maker": "/visuals/landing-previews/picturebook-scene-maker.png",
   "poetry-picture-maker": "/visuals/landing-previews/poetry-picture-maker.png",
+  "ai-question-helper": "/visuals/landing-previews/ai-question-helper.png",
+  "digital-reading-passport": "/visuals/landing-previews/digital-reading-passport-hero.png",
+  "ml-microbit-studio": "/visuals/landing-previews/ml-microbit-studio-hero.png",
+  "neon-rhythm-runner": "/visuals/landing-previews/neon-rhythm-runner-hero.png",
+  "liberation-text-adventure": "/visuals/landing-previews/liberation-text-adventure-hero.png",
+  "seat-shuffle-picker": "/visuals/landing-previews/seat-shuffle-picker-hero.png",
+  "class-suggestion-box": "/visuals/landing-previews/class-suggestion-box-hero.png",
+  "boardgame-rental-desk": "/visuals/landing-previews/boardgame-rental-desk-hero.png",
+  "live-class-poll": "/visuals/landing-previews/live-class-poll-hero.png",
 };
 
 export function HeroSection() {
