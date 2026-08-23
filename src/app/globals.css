@@ -15710,3 +15710,35 @@ dl.concept-diagram-notes {
 .concept-answer-block > ul.concept-check-list li::before {
   content: none;
 }
+
+/* 첫 진입: 답변 생성 전 자리 표시 */
+.concept-answer-empty {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  min-height: 300px;
+  border: 1.5px dashed #b3cdc6;
+  border-radius: 10px;
+  padding: 28px;
+  text-align: center;
+}
+
+.concept-answer-empty svg {
+  color: #0b8f78;
+}
+
+.concept-answer-empty strong {
+  color: #1d3a34;
+  font-size: 17px;
+  font-weight: 760;
+}
+
+.concept-answer-empty p {
+  max-width: 380px;
+  margin: 0;
+  color: #6d8a84;
+  font-size: 13.5px;
+  font-weight: 560;
+  line-height: 1.65;
+}

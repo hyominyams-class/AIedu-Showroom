@@ -122,7 +122,7 @@ type MarkdownBlock =
 
 export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspaceProps) {
   const [values, setValues] = useState(initialValues);
-  const [board, setBoard] = useState<ConceptOutput>(() => buildConceptFallback(app, spec, initialValues));
+  const [board, setBoard] = useState<ConceptOutput | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState(0);
   const [source, setSource] = useState<"live" | "fallback" | "local">("local");
@@ -137,6 +137,7 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
   }, [values]);
 
   const sections = useMemo<AnswerSection[]>(() => {
+    if (!board) return [];
     const blocks = board.answerBlocks ?? [];
     const list: AnswerSection[] = blocks.map((block) => ({ kind: "block" as const, block }));
     const tips = (board.notes ?? []).map((note) => note.trim()).filter(Boolean);
@@ -241,6 +242,7 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
   }
 
   async function copyBoard() {
+    if (!board) return;
     const tips = (board.notes ?? []).map((note) => note.trim()).filter(Boolean);
     const text = [
       `[${board.title}]`,
@@ -260,7 +262,7 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
 
   function reset() {
     setValues(initialValues);
-    setBoard(buildConceptFallback(app, spec, initialValues));
+    setBoard(null);
     setSource("local");
     setCopied(false);
     setStepIndex(0);
@@ -348,7 +350,7 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
             )}
           </div>
           <div className="mvp-action-row">
-            <button className="button-primary" disabled={loading} type="submit">
+            <button className={`button-primary${board || loading ? "" : " imagegen-nudge"}`} disabled={loading} type="submit">
               {loading ? <Loader2 className="animate-spin" size={18} /> : <Lightbulb size={18} />}
               {loading ? "답변 중" : "답변 받기"}
             </button>
@@ -382,6 +384,15 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
                 </ul>
               </div>
             ) : null}
+            {!board && !loading ? (
+              <div className="concept-answer-empty">
+                <MessageCircleQuestion size={30} />
+                <strong>쉬운 설명이 여기에 만들어져요</strong>
+                <p>왼쪽에 궁금한 말과 수업 상황을 적고 ‘답변 받기’를 누르세요. 설명과 도식, 확인 문제까지 한 번에 나와요.</p>
+              </div>
+            ) : null}
+            {board ? (
+              <>
             <header className="concept-answer-hero">
               <span className="concept-answer-emoji" aria-hidden="true">{board.emoji || "📖"}</span>
               <div className="concept-answer-hero-copy">
@@ -475,9 +486,11 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
                 ))}
               </div>
             )}
+              </>
+            ) : null}
           </article>
 
-          {sections.length ? null : (
+          {board && !sections.length ? (
             <div className="concept-card-grid">
               {board.cards.slice(0, 3).map((card) => (
                 <article key={card.title}>
@@ -486,12 +499,14 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
                 </article>
               ))}
             </div>
-          )}
+          ) : null}
 
-          <button className="button-secondary concept-copy-button" type="button" onClick={copyBoard}>
-            <Clipboard size={18} />
-            {copied ? "복사 완료" : "설명 복사"}
-          </button>
+          {board ? (
+            <button className="button-secondary concept-copy-button" type="button" onClick={copyBoard}>
+              <Clipboard size={18} />
+              {copied ? "복사 완료" : "설명 복사"}
+            </button>
+          ) : null}
         </section>
       </section>
     </main>
