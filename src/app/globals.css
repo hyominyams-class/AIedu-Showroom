@@ -12858,6 +12858,10 @@ header nav .button-secondary.hidden {
   animation: imagegenFadeIn 200ms ease-out;
 }
 
+.imagegen-progress-overlay .imagegen-progress {
+  gap: 11px;
+}
+
 .imagegen-progress {
   display: grid;
   width: min(100%, 330px);
@@ -12870,35 +12874,35 @@ header nav .button-secondary.hidden {
   text-align: left;
 }
 
-.imagegen-progress-top {
+.imagegen-progress .imagegen-progress-top {
   display: flex;
   align-items: center;
   gap: 8px;
   color: var(--app-accent, var(--accent));
 }
 
-.imagegen-progress-top strong {
+.imagegen-progress .imagegen-progress-top strong {
   flex: 1;
   color: var(--ink);
   font-size: 14.5px;
   font-weight: 700;
 }
 
-.imagegen-progress-top span {
+.imagegen-progress .imagegen-progress-top span {
   color: var(--app-accent, var(--accent));
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   font-weight: 750;
 }
 
-.imagegen-progress-track {
+.imagegen-progress .imagegen-progress-track {
   height: 7px;
   overflow: hidden;
   border-radius: 999px;
   background: var(--app-soft, var(--accent-soft));
 }
 
-.imagegen-progress-track span {
+.imagegen-progress .imagegen-progress-track span {
   display: block;
   height: 100%;
   border-radius: inherit;
@@ -12906,7 +12910,7 @@ header nav .button-secondary.hidden {
   transition: width 160ms linear;
 }
 
-.imagegen-progress-steps {
+.imagegen-progress .imagegen-progress-steps {
   display: grid;
   gap: 6px;
   margin: 0;
@@ -12914,7 +12918,7 @@ header nav .button-secondary.hidden {
   list-style: none;
 }
 
-.imagegen-progress-steps li {
+.imagegen-progress .imagegen-progress-steps li {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -12923,7 +12927,7 @@ header nav .button-secondary.hidden {
   font-weight: 600;
 }
 
-.imagegen-progress-steps em {
+.imagegen-progress .imagegen-progress-steps em {
   display: grid;
   width: 17px;
   height: 17px;
@@ -12935,26 +12939,26 @@ header nav .button-secondary.hidden {
   color: #ffffff;
 }
 
-.imagegen-progress-steps .is-done {
+.imagegen-progress .imagegen-progress-steps .is-done {
   color: var(--ink);
 }
 
-.imagegen-progress-steps .is-done em {
+.imagegen-progress .imagegen-progress-steps .is-done em {
   border-color: var(--app-accent, var(--accent));
   background: var(--app-accent, var(--accent));
 }
 
-.imagegen-progress-steps .is-active {
+.imagegen-progress .imagegen-progress-steps .is-active {
   color: var(--ink);
   font-weight: 750;
 }
 
-.imagegen-progress-steps .is-active em {
+.imagegen-progress .imagegen-progress-steps .is-active em {
   border-color: var(--app-accent, var(--accent));
   color: var(--app-accent, var(--accent));
 }
 
-.imagegen-progress p {
+.imagegen-progress .imagegen-progress-note {
   margin: 0;
   color: var(--muted);
   font-size: 12.5px;
@@ -12962,7 +12966,7 @@ header nav .button-secondary.hidden {
   line-height: 1.5;
 }
 
-.imagegen-progress-remain {
+.imagegen-progress .imagegen-progress-remain {
   color: var(--app-accent, var(--accent));
   font-size: 11.5px;
   font-weight: 700;
@@ -13197,18 +13201,30 @@ header nav .button-secondary.hidden {
 
 .invention-viewer-stage {
   display: grid;
+  justify-items: center;
   gap: 10px;
   margin: 0;
 }
 
 .invention-viewer-frame {
   position: relative;
-  height: clamp(300px, 52vh, 520px);
+  width: 100%;
+  max-width: 780px;
+  justify-self: center;
   overflow: hidden;
   border: 1px solid #d0ddd4;
   border-radius: 12px;
   background: var(--app-tint, var(--soft));
   padding: 14px;
+}
+
+.invention-viewer-frame.is-landscape {
+  aspect-ratio: 3 / 2;
+}
+
+.invention-viewer-frame.is-portrait {
+  max-width: 380px;
+  aspect-ratio: 2 / 3;
 }
 
 .invention-viewer-frame img {
@@ -13218,6 +13234,7 @@ header nav .button-secondary.hidden {
 .invention-viewer-stage figcaption {
   display: grid;
   gap: 3px;
+  text-align: center;
 }
 
 .invention-viewer-stage figcaption strong {
@@ -13250,7 +13267,7 @@ header nav .button-secondary.hidden {
     animation: none;
   }
 
-  .imagegen-progress-track span {
+  .imagegen-progress .imagegen-progress-track span {
     transition: none;
   }
 }
@@ -13269,7 +13286,6 @@ header nav .button-secondary.hidden {
   }
 
   .invention-viewer-frame {
-    height: clamp(240px, 46vh, 380px);
     padding: 10px;
   }
 }

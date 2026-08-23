@@ -112,7 +112,7 @@ export function ImageGenProgress({ title, steps, progress, stepIndex, remainSeco
         })}
       </ol>
 
-      <p>{finished ? "곧 결과를 보여 드려요." : steps[stepIndex]?.caption}</p>
+      <p className="imagegen-progress-note">{finished ? "곧 결과를 보여 드려요." : steps[stepIndex]?.caption}</p>
       <span className="imagegen-progress-remain">{finished ? "완성" : `약 ${remainSeconds}초 남음`}</span>
     </div>
   );
