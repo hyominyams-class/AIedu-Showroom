@@ -477,6 +477,7 @@ a {
 .hero-showcase-track {
   display: flex;
   width: max-content;
+  pointer-events: auto;
   min-height: inherit;
   align-items: flex-end;
   gap: clamp(10px, 1.1vw, 18px);
@@ -491,7 +492,8 @@ a {
 .hero-preview-card {
   position: relative;
   display: grid;
-  flex: 0 0 clamp(188px, 18vw, 294px);
+  width: clamp(188px, 18vw, 294px);
+  flex: 0 0 auto;
   aspect-ratio: 9 / 11.2;
   overflow: hidden;
   border: 1px solid rgb(16 24 40 / 0.12);
@@ -546,12 +548,11 @@ a {
   gap: 3px;
   border: 1px solid rgb(255 255 255 / 0.5);
   border-radius: 8px;
-  background: rgb(255 255 255 / 0.9);
+  background: rgb(255 255 255 / 0.95);
   padding: 10px;
   color: var(--ink);
   text-align: left;
   box-shadow: 0 12px 28px rgb(16 24 40 / 0.14);
-  backdrop-filter: blur(14px);
 }
 
 .hero-preview-copy span,
@@ -3176,7 +3177,7 @@ a {
   }
 
   .hero-preview-card {
-    flex-basis: 176px;
+    width: 176px;
   }
 
   .hero-proof-row span {
@@ -5958,11 +5959,15 @@ a {
   .hero-backdrop,
   .intro-gate-bg,
   .hero-floating-card,
-  .hero-showcase-track,
   .hero-preview-card,
   .app-card-image {
     animation: none !important;
     transition: none !important;
+  }
+
+  /* 카드 띠는 멈추면 화면이 비어 보여서, 흔들림만 줄이고 더 느리게 흐르게 둔다. */
+  .hero-showcase-track {
+    animation-duration: 104s !important;
   }
 }
 
