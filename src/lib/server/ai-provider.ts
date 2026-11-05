@@ -29,7 +29,7 @@ export function generationFailure(error: unknown) {
     };
   }
   if (error instanceof Error && ["AbortError", "TimeoutError"].includes(error.name)) return {
-    status: 504, code: "generation_timeout", error: "이미지를 만드는 시간이 길어졌어요. 잠시 후 다시 시도해 주세요. 체험 횟수는 줄어들지 않았어요.",
+    status: 504, code: "generation_timeout", error: "완성까지 시간이 더 필요해요. 잠시 후 다시 시도해 주세요. 체험 횟수는 줄어들지 않았어요.",
   };
   return { status: 503, code: "generation_failed", error: "생성을 확인하지 못했어요. 이전 결과는 그대로 남아 있어요. 잠시 후 다시 시도해 주세요." };
 }
