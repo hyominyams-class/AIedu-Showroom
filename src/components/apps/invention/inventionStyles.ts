@@ -38,7 +38,7 @@ export const INVENTION_STYLES: InventionStyle[] = [
   },
 ];
 
-export const INVENTION_STYLE_OPTIONS = INVENTION_STYLES.map(({ id, label, caption }) => ({ id, label, caption }));
+export const INVENTION_STYLE_OPTIONS = INVENTION_STYLES.map(({ id, label, caption, src, alt }) => ({ id, label, caption, src, alt }));
 
 export function findInventionStyleIndex(id?: string) {
   const index = INVENTION_STYLES.findIndex((style) => style.id === id);

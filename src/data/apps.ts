@@ -626,7 +626,7 @@ const allApps: AppItem[] = [
     tags: ["이미지 생성", "국어", "창작"],
     keywords: ["AI 장면 이미지", "주제·분위기·인물 입력", "그림책 문장", "글자 렌더링"],
     targetGrade: "초2-중1",
-    difficulty: "상",
+    difficulty: "중",
     buildBasis: "텍스트와 장면 묘사",
     lessonUse: "이야기 쓰기와 장면 상상",
     demoType: "이미지 생성형",
@@ -836,7 +836,7 @@ const allApps: AppItem[] = [
     tags: ["발명", "이미지 생성", "프로젝트"],
     keywords: ["발명 발표 포스터", "아이디어 입력", "사용 장면 이미지", "AI 그림"],
     targetGrade: "초5-중3",
-    difficulty: "상",
+    difficulty: "중",
     buildBasis: "스케치와 발명 아이디어",
     lessonUse: "메이커 수업과 프로젝트 발표",
     demoType: "이미지 생성형",
@@ -1376,7 +1376,7 @@ const allApps: AppItem[] = [
   },
 ];
 
-export const apps: AppItem[] = [...publishedApps, ...allApps];
+export const apps: AppItem[] = [...publishedApps, ...allApps.filter((app) => app.slug !== "poetry-picture-maker")];
 
 export const difficultyLabels: Record<Difficulty, string> = {
   하: "바로 실행형",

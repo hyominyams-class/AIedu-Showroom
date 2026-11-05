@@ -7,6 +7,8 @@ import { serverEnv } from "@/lib/server/env";
 import { finishGeneration, getQuota, QuotaError, releaseGeneration, reserveGeneration } from "@/lib/server/quota";
 import { sameOrigin, visitorFromRequest } from "@/lib/server/session";
 import { writeImage } from "@/lib/server/store";
+import { AiProviderError, generationFailure, requireAiResponse } from "@/lib/server/ai-provider";
+import { PICTUREBOOK_STYLES } from "@/data/image-styles";
 
 export const maxDuration = 180;
 
@@ -15,9 +17,9 @@ const AI_TIMEOUT_MS = {
   text: 60_000,
   concept: 90_000,
   questionHelper: 120_000,
-  image: 120_000,
+  image: 150_000,
   longImage: 180_000,
-  imageEdit: 120_000,
+  imageEdit: 150_000,
 } as const;
 
 export async function POST(request: Request) {
@@ -71,10 +73,14 @@ export async function POST(request: Request) {
       try { await releaseGeneration(visitor, body.appSlug, body.requestId); } catch { /* The reservation expires if storage is temporarily unavailable. */ }
     }
     // Never log prompts, API keys or upstream response bodies.
-    console.error("[ai/generate] request failed", { app: body.appSlug, kind: error instanceof Error ? error.name : "unknown" });
+    console.error("[ai/generate] request failed", {
+      app: body.appSlug, requestId: body.requestId, kind: error instanceof Error ? error.name : "unknown",
+      ...(error instanceof AiProviderError ? { providerStatus: error.status, providerCode: error.code, providerRequestId: error.providerRequestId } : {}),
+    });
     const current = await getQuota(visitor, body.appSlug).catch(() => undefined);
     if (current?.latest?.requestId === body.requestId) return Response.json({ ok: true, ...current.latest, quota: current.quota });
-    return Response.json({ ok: false, code: "generation_failed", error: "생성을 확인하지 못했어요. 이전 결과는 그대로 남아 있어요. 잠시 후 다시 시도해 주세요.", quota: current?.quota }, { status: 503 });
+    const { status, ...failure } = generationFailure(error);
+    return Response.json({ ok: false, ...failure, quota: current?.quota }, { status, headers: { "Cache-Control": "no-store", ...("retryAfter" in failure ? { "Retry-After": String(failure.retryAfter) } : {}) } });
   }
 }
 
@@ -654,18 +660,19 @@ async function generateImage(
       prompt,
       size: appSlug === "poetry-picture-maker" ? "1024x1536" : "1024x1024",
       quality: "medium",
+      output_format: "png",
       n: 1,
     }),
   }, appSlug === "poetry-picture-maker" ? AI_TIMEOUT_MS.longImage : AI_TIMEOUT_MS.image);
 
-  if (!response.ok) throw new Error(`AI provider returned ${response.status}`);
+  await requireAiResponse(response);
   const data = await response.json();
   const b64 = data.data?.[0]?.b64_json;
   return b64 ? `data:image/png;base64,${b64}` : undefined;
 }
 
 function getImageModel() {
-  return serverEnv("OPENAI_IMAGE_MODEL") || "gpt-image-2";
+  return serverEnv("OPENAI_IMAGE_MODEL") || "gpt-image-2.5-flare";
 }
 
 async function generateImageFromReference(
@@ -678,6 +685,7 @@ async function generateImageFromReference(
   form.append("prompt", prompt);
   form.append("size", "1024x1024");
   form.append("quality", "medium");
+  form.append("output_format", "png");
   form.append("n", "1");
   form.append("image", reference.blob, reference.filename);
 
@@ -689,7 +697,7 @@ async function generateImageFromReference(
     body: form,
   }, AI_TIMEOUT_MS.imageEdit);
 
-  if (!response.ok) throw new Error(`AI provider returned ${response.status}`);
+  await requireAiResponse(response);
   const data = await response.json();
   const b64 = data.data?.[0]?.b64_json;
   return b64 ? `data:image/png;base64,${b64}` : undefined;
@@ -737,7 +745,7 @@ function buildImagePrompt(
       `Exact story sentence: ${values.topic || appTitle}.`,
       `Scene description: ${values.notes || ""}.`,
       `Render the exact story sentence "${values.topic || appTitle}" directly in the image with legible Korean storybook typography. Do not add other readable text unless explicitly requested in the scene description.`,
-      `Visual style: ${values.style || "warm hand-drawn picturebook illustration"}.` ,
+      `Visual style: ${PICTUREBOOK_STYLES.find((style) => style.id === values.style)?.prompt || PICTUREBOOK_STYLES[0].prompt}`,
       "Use only storybook-friendly visual treatment, no watermark, child-friendly illustration, clear subject and setting.",
     ].join(" ");
   }

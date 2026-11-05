@@ -13,7 +13,6 @@ import { SeatShuffleWorkspace } from "@/components/apps/seating/SeatShuffleWorks
 import { SuggestionBoxWorkspace } from "@/components/apps/suggestion/SuggestionBoxWorkspace";
 import { InventionLabWorkspace } from "@/components/apps/invention/InventionLabWorkspace";
 import { PicturebookSceneWorkspace } from "@/components/apps/picturebook/PicturebookSceneWorkspace";
-import { PoetryPictureWorkspace } from "@/components/apps/poetry/PoetryPictureWorkspace";
 import { QuestionHelperWorkspace } from "@/components/apps/question/QuestionHelperWorkspace";
 import { TimerDashboardWorkspace } from "@/components/apps/timer/TimerDashboardWorkspace";
 import { VocabCardsWorkspace } from "@/components/apps/vocab/VocabCardsWorkspace";
@@ -40,7 +39,6 @@ const workspaceBySlug: Record<string, WorkspaceComponent> = {
   "neon-rhythm-runner": NeonRhythmRunnerWorkspace,
   "liberation-text-adventure": LiberationAdventureWorkspace,
   "ai-question-helper": QuestionHelperWorkspace,
-  "poetry-picture-maker": PoetryPictureWorkspace,
   "picturebook-scene-maker": PicturebookSceneWorkspace,
   "ai-invention-lab": InventionLabWorkspace,
   "seat-shuffle-picker": SeatShuffleWorkspace,

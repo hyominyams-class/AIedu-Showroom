@@ -20,7 +20,7 @@ after(() => rm(directory, { recursive: true, force: true }));
 
 test("image quota permits three successes, replays a request without charging, rejects the fourth", async () => {
   const visitor = randomUUID();
-  const slug = "poetry-picture-maker";
+  const slug = "picturebook-scene-maker";
   const ids = Array.from({ length: 3 }, () => randomUUID());
   for (const id of ids) {
     await reserveGeneration(visitor, slug, id);
@@ -29,7 +29,7 @@ test("image quota permits three successes, replays a request without charging, r
   assert.equal((await getQuota(visitor, slug)).quota.remaining, 0);
   assert.equal((await reserveGeneration(visitor, slug, ids[0])).cached?.title, ids[0]);
   await assert.rejects(reserveGeneration(visitor, slug, randomUUID()), (error: unknown) => error instanceof QuotaError && error.code === "limit_reached");
-  assert.equal((await getQuota(visitor, "picturebook-scene-maker")).quota.remaining, 3);
+  assert.equal((await getQuota(visitor, "ai-invention-lab")).quota.remaining, 3);
 });
 
 test("text generation allows exactly twenty successes", async () => {
@@ -134,5 +134,53 @@ test("an empty provider result returns an error and releases its reservation wit
   } finally {
     globalThis.fetch = oldFetch;
     if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey;
+  }
+});
+
+test("a second picturebook image survives a provider rate limit and retries without losing the first artwork", async () => {
+  const oldFetch = globalThis.fetch;
+  const oldKey = process.env.OPENAI_API_KEY;
+  const oldModel = process.env.OPENAI_IMAGE_MODEL;
+  const visitor = randomUUID();
+  process.env.OPENAI_API_KEY = "test-key-not-a-real-credential";
+  process.env.OPENAI_IMAGE_MODEL = "gpt-image-2.5-flare";
+  const image = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jgWQAAAAASUVORK5CYII=";
+  let calls = 0;
+  globalThis.fetch = async (input, options) => {
+    assert.equal(input, "https://api.openai.com/v1/images/generations");
+    const payload = JSON.parse(String(options?.body));
+    assert.equal(payload.model, "gpt-image-2.5-flare");
+    assert.equal(payload.output_format, "png");
+    if (++calls === 2) return Response.json({ error: { code: "rate_limit_exceeded" } }, { status: 429, headers: { "Retry-After": "15" } });
+    return Response.json({ data: [{ b64_json: image }] });
+  };
+  const request = (requestId: string, style: string) => generateRoute(new Request("http://localhost/api/ai/generate", {
+    method: "POST", headers: { "Content-Type": "application/json", cookie: `showroom_access=${signSession(visitor, "access", 3600)}` },
+    body: JSON.stringify({ appSlug: "picturebook-scene-maker", mode: "image", requestId, values: { topic: "빗방울이 반짝였어요.", style } }),
+  }));
+  try {
+    const firstId = randomUUID();
+    const secondId = randomUUID();
+    assert.equal((await request(firstId, "watercolor")).status, 200);
+    const failed = await request(secondId, "colored-pencil");
+    assert.equal(failed.status, 429);
+    assert.equal(failed.headers.get("Retry-After"), "15");
+    assert.equal((await failed.json()).code, "provider_rate_limited");
+    const afterFailure = await getQuota(visitor, "picturebook-scene-maker");
+    assert.equal(afterFailure.quota.used, 1);
+    assert.equal(afterFailure.quota.busy, false);
+    assert.equal(afterFailure.latest?.requestId, firstId);
+    assert.equal((await request(secondId, "colored-pencil")).status, 200);
+    const completed = await getQuota(visitor, "picturebook-scene-maker");
+    assert.equal(completed.history.length, 2);
+    assert.equal(completed.quota.used, 2);
+    assert.equal(completed.quota.remaining, 1);
+    assert.notEqual(completed.history[0].imageUrl, completed.history[1].imageUrl);
+    assert.equal((await request(secondId, "colored-pencil")).status, 200);
+    assert.equal(calls, 3, "Reopening the saved request must not call the provider again");
+  } finally {
+    globalThis.fetch = oldFetch;
+    if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey;
+    if (oldModel === undefined) delete process.env.OPENAI_IMAGE_MODEL; else process.env.OPENAI_IMAGE_MODEL = oldModel;
   }
 });

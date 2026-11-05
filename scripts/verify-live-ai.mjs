@@ -151,17 +151,20 @@ try {
   await page.unroute("**/api/ai/generate");
   report.push({ app: "ai-invention-lab", uploadPayloadVerified: true, providerCall: "reused prior successful identical-reference edit" });
 
-  await open("poetry-picture-maker");
+  await open("picturebook-scene-maker");
   await page.getByRole("button", { name: "최근 작품 보기", exact: true }).click();
   await page.locator(".creation-result-step img").evaluate((img) => img.decode());
-  await capture("poetry-restored");
+  await page.getByRole("button", { name: /내 작품 보기/ }).click();
+  await page.locator(".creation-gallery-card").first().waitFor();
+  await capture("picturebook-gallery-restored");
+  await page.locator(".creation-gallery-open").first().click();
   await page.getByRole("button", { name: "내용 바꾸기", exact: true }).click();
   await page.getByRole("button", { name: "예시로 되돌리기", exact: true }).click();
   await page.getByRole("button", { name: "최근 작품 보기", exact: true }).click();
-  report.push({ app: "poetry-picture-maker", previousImageAfterReset: true });
+  report.push({ app: "picturebook-scene-maker", previousImageAfterReset: true });
 
   expectedFailure = true;
-  const originalQuota = await (await context.request.get(`${base}/api/ai/quota?app=poetry-picture-maker`)).json();
+  const originalQuota = await (await context.request.get(`${base}/api/ai/quota?app=picturebook-scene-maker`)).json();
   await page.route("**/api/ai/generate", (route) => route.fulfill({ status: 503, json: { ok: false, error: "생성을 마치지 못했어요. 잠시 후 다시 시도해 주세요.", quota: originalQuota.quota } }));
   await page.getByRole("button", { name: "표현 바꾸기", exact: true }).click();
   await page.getByRole("button", { name: "이미지 만들기 · 1회", exact: true }).click();
@@ -172,17 +175,17 @@ try {
   assert.equal(new URL(await page.locator(".creation-result-step img").getAttribute("src"), base).pathname, originalQuota.latest.imageUrl);
   await page.unroute("**/api/ai/generate");
   expectedFailure = false;
-  report.push({ app: "poetry-picture-maker", errorUi: "simulated", previousResultRetained: true, remainingUnchanged: true });
+  report.push({ app: "picturebook-scene-maker", errorUi: "simulated", previousResultRetained: true, remainingUnchanged: true });
 
   // Boundary UI is simulated; the server's actual 3/20 boundaries are tested
   // separately without spending twenty provider requests.
-  const existing = await (await context.request.get(`${base}/api/ai/quota?app=poetry-picture-maker`)).json();
-  await page.route("**/api/ai/quota?app=poetry-picture-maker", (route) => route.fulfill({ json: { ...existing, quota: { limit: 3, used: 3, remaining: 0, busy: false } } }));
+  const existing = await (await context.request.get(`${base}/api/ai/quota?app=picturebook-scene-maker`)).json();
+  await page.route("**/api/ai/quota?app=picturebook-scene-maker", (route) => route.fulfill({ json: { ...existing, quota: { limit: 3, used: 3, remaining: 0, busy: false } } }));
   await page.reload(); await page.getByText("이미지 0회 남음", { exact: true }).waitFor();
   await page.getByRole("button", { name: "다음", exact: true }).click();
   assert(await page.getByRole("button", { name: "이미지 만들기 · 1회", exact: true }).isDisabled());
   await capture("image-limit-simulated");
-  report.push({ app: "poetry-picture-maker", boundaryUi: "simulated", preservesPreviousResult: Boolean(existing.latest?.imageUrl) });
+  report.push({ app: "picturebook-scene-maker", boundaryUi: "simulated", preservesPreviousResult: Boolean(existing.latest?.imageUrl) });
   fs.writeFileSync(storage, JSON.stringify({ cookies: await context.cookies(), origins: [] }), { mode: 0o600 }); fs.chmodSync(storage, 0o600);
 } catch (error) {
   report.push({ ok: false, error: error.message });

@@ -4,7 +4,9 @@ import { dirname, join } from "node:path";
 import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
 import { serverEnv } from "./env";
 
-export class StoreUnavailableError extends Error {}
+export class StoreUnavailableError extends Error {
+  constructor(message: string) { super(message); this.name = "StoreUnavailableError"; }
+}
 
 function blobOptions() {
   if (process.env.SHOWROOM_STORE === "local" && !process.env.VERCEL) return undefined;
@@ -24,7 +26,9 @@ function filePath(key: string) {
 export async function readStored(key: string) {
   const options = blobOptions();
   if (options) {
-    const result = await get(key, { ...options, access: "private", useCache: false });
+    // Compressed JSON gets a weak HTTP ETag (W/...), which can never satisfy
+    // ifMatch. Read the original representation so larger ledgers remain writable.
+    const result = await get(key, { ...options, access: "private", useCache: false, headers: { "Accept-Encoding": "identity" } });
     if (!result) return null;
     if (!result.stream) throw new StoreUnavailableError("Empty storage response");
     return { bytes: Buffer.from(await new Response(result.stream).arrayBuffer()), etag: result.blob.etag };

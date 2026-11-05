@@ -23,8 +23,9 @@ export function useAiGeneration(slug: string) {
   const refresh = useCallback(async () => {
     try {
       const response = await fetch(`/api/ai/quota?app=${encodeURIComponent(slug)}`, { cache: "no-store" });
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
       if (!mounted.current) return;
+      if (!data) { setError("저장한 결과를 불러오지 못했어요. 잠시 후 다시 확인해 주세요."); return; }
       if (!response.ok) { setError(data.error || "남은 횟수를 확인하지 못했어요."); return; }
       setQuota(data.quota);
       if (data.latest?.source === "live") setLatest(data.latest);
@@ -67,7 +68,8 @@ export function useAiGeneration(slug: string) {
         method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
         body: JSON.stringify({ ...input, messages: input.messages?.slice(-8), appSlug: slug, mode: policy.mode, requestId }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
+      if (!data) throw new Error(policy.mode === "image" ? "응답이 늦어지고 있어요. 잠시 후 내 작품 보기에서 완성 여부를 확인해 주세요." : "응답이 늦어지고 있어요. 잠시 후 저장한 결과를 다시 확인해 주세요.");
       if (mounted.current && data.quota) setQuota(data.quota);
       if (!response.ok || !data.ok || data.source !== "live") throw new Error(data.error || "생성을 마치지 못했어요. 다시 시도해 주세요.");
       if (mounted.current) {

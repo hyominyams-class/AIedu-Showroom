@@ -5,7 +5,7 @@ import { chromium } from "playwright";
 const base = process.env.SHOWROOM_URL || "http://127.0.0.1:3117";
 const out = path.resolve(process.env.SHOWROOM_CAPTURE_DIR || "output/playwright/showroom-upgrade");
 fs.mkdirSync(out, { recursive: true });
-const slugs = ["author-meet-chatbot", "class-timer-station", "concept-explainer", "english-vocab-cards", "addition-card-match-game", "history-typing-rain", "neon-rhythm-runner", "liberation-text-adventure", "ai-question-helper", "poetry-picture-maker", "picturebook-scene-maker", "ai-invention-lab", "seat-shuffle-picker", "class-suggestion-box", "boardgame-rental-desk", "live-class-poll"];
+const slugs = ["author-meet-chatbot", "class-timer-station", "concept-explainer", "english-vocab-cards", "addition-card-match-game", "history-typing-rain", "neon-rhythm-runner", "liberation-text-adventure", "ai-question-helper", "picturebook-scene-maker", "ai-invention-lab", "seat-shuffle-picker", "class-suggestion-box", "boardgame-rental-desk", "live-class-poll"];
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext();
 const access = await context.request.post(`${base}/api/verify-code`, { data: { code: process.env.SHOWROOM_ACCESS_CODE || "showroom2026" } });
