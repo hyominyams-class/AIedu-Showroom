@@ -194,7 +194,7 @@ const catalog: PublishedApp[] = [
     tags: ["교사 성향", "디지털 수업", "Teacher Test"],
     keywords: ["수업 유형 진단", "AI 활용 성향", "자기 성찰", "연수 아이스브레이킹"],
     targetGrade: "교사",
-    difficulty: "하",
+    difficulty: "중",
     lessonUse: "연수 도입과 수업 성향 나눔",
     externalUrl: "https://teacher-test-mu.vercel.app/",
     actionLabel: "내 수업 유형 알아보기",
