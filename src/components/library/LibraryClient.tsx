@@ -4,8 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Filter, Layers3, Search, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState, useSyncExternalStore } from "react";
-import { PageControls } from "@/components/mvp/PageControls";
+import { useMemo, useState } from "react";
 import { AppCard } from "@/components/library/AppCard";
 import { apps, categories, Difficulty, AppItem } from "@/data/apps";
 import { getMvpSpec } from "@/data/mvp";
@@ -18,14 +17,7 @@ const lightboxDifficultyClass = {
   상: "is-high",
 } as const;
 
-function subscribeWidth(callback: () => void) {
-  window.addEventListener("resize", callback);
-  return () => window.removeEventListener("resize", callback);
-}
-
 export function LibraryClient() {
-  const [page, setPage] = useState(0);
-  const pageSize = useSyncExternalStore(subscribeWidth, () => window.innerWidth < 640 ? 2 : window.innerWidth < 1024 ? 4 : 6, () => 6);
   const [category, setCategory] = useState("전체");
   const [difficulty, setDifficulty] = useState<Difficulty | "전체">("전체");
   const [query, setQuery] = useState("");
@@ -43,12 +35,9 @@ export function LibraryClient() {
           .includes(keyword);
 
       return categoryMatch && difficultyMatch && keywordMatch;
-    });
+    }).sort((a, b) => difficulties.indexOf(a.difficulty) - difficulties.indexOf(b.difficulty));
   }, [category, difficulty, query]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredApps.length / pageSize));
-  const safePage = Math.min(page, pageCount - 1);
-  const visibleApps = filteredApps.slice(safePage * pageSize, (safePage + 1) * pageSize);
   const selectedApp = selectedSlug ? filteredApps.find((app) => app.slug === selectedSlug) ?? apps.find((app) => app.slug === selectedSlug) : undefined;
 
   function selectApp(app: AppItem) {
@@ -86,7 +75,7 @@ export function LibraryClient() {
               aria-label="앱 검색"
               placeholder="앱 이름, 핵심 키워드 검색"
               value={query}
-              onChange={(event) => { setQuery(event.target.value); setPage(0); }}
+              onChange={(event) => setQuery(event.target.value)}
             />
           </div>
 
@@ -98,7 +87,7 @@ export function LibraryClient() {
                 key={item}
                 type="button"
                 aria-pressed={difficulty === item}
-                onClick={() => { setDifficulty(item); setPage(0); }}
+                onClick={() => setDifficulty(item)}
               >
                 {item}
               </button>
@@ -111,7 +100,7 @@ export function LibraryClient() {
             className={`category-pill ${category === "전체" ? "is-active" : ""}`}
             type="button"
             aria-pressed={category === "전체"}
-            onClick={() => { setCategory("전체"); setPage(0); }}
+            onClick={() => setCategory("전체")}
           >
             <Layers3 size={16} />
             전체
@@ -122,7 +111,7 @@ export function LibraryClient() {
               key={item}
               type="button"
               aria-pressed={category === item}
-              onClick={() => { setCategory(item); setPage(0); }}
+              onClick={() => setCategory(item)}
             >
               {item}
             </button>
@@ -133,12 +122,10 @@ export function LibraryClient() {
           <p className="shrink-0 whitespace-nowrap text-sm font-medium text-[var(--muted)]" role="status" aria-live="polite">
             {filteredApps.length}개 앱
           </p>
-          <PageControls page={safePage} total={pageCount} onPage={setPage} label="앱 목록 페이지" />
           <button
             className="button-secondary"
             type="button"
             onClick={() => {
-              setPage(0);
               setCategory("전체");
               setDifficulty("전체");
               setQuery("");
@@ -149,7 +136,7 @@ export function LibraryClient() {
         </div>
 
         <div className="app-card-grid mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-          {visibleApps.map((app, index) => (
+          {filteredApps.map((app, index) => (
             <AppCard app={app} key={app.slug} priority={index < 8} onSelect={selectApp} />
           ))}
         </div>

@@ -171,9 +171,13 @@ const cases = [
   }],
   ["library", async () => {
     await page.goto(`${base}/library`); await page.getByLabel("앱 검색").waitFor();
-    const first = await page.locator(".app-card").first().getAttribute("aria-label");
-    await page.getByRole("navigation", { name: "앱 목록 페이지" }).getByRole("button", { name: "다음 페이지" }).click();
-    assert.notEqual(await page.locator(".app-card").first().getAttribute("aria-label"), first);
+    const total = Number.parseInt(await page.getByRole("status").innerText(), 10);
+    assert(total > 6, "The showroom should retain its full app catalog");
+    assert.equal(await page.locator(".app-card").count(), total, "Every app should appear without pagination");
+    const levels = await page.locator(".app-card .difficulty-badge").allTextContents();
+    const difficultyOrder = ["하", "중", "상"];
+    assert.deepEqual(levels, [...levels].sort((a, b) => difficultyOrder.indexOf(a) - difficultyOrder.indexOf(b)), "Apps should appear from easy to hard");
+    await capture("library-all-apps");
     await page.getByLabel("앱 검색").fill("시화");
     await page.getByRole("button", { name: "시화 제작 설명 보기", exact: true }).click();
     await page.getByRole("dialog").waitFor();
@@ -182,6 +186,11 @@ const cases = [
     await page.getByLabel("앱 검색").fill("찾을수없는앱이름");
     await page.getByText("검색 결과가 없습니다.").waitFor();
     await capture("library-empty");
+    await page.getByRole("button", { name: "전체 보기", exact: true }).click();
+    assert.equal(await page.locator(".app-card").count(), total);
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await page.locator(".app-card").count(), total, "Mobile should show the full catalog too");
+    assert.deepEqual(await page.locator(".app-card .difficulty-badge").allTextContents(), levels);
   }],
 ];
 
