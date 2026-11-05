@@ -25,30 +25,6 @@ fs.mkdirSync(previewDir, { recursive: true });
 // Frames are 4:3 so they survive both the card crop and the taller lightbox crop.
 const shots = [
   {
-    file: path.join(thumbDir, "digital-reading-passport.png"),
-    url: "https://reading-passport-xga6.vercel.app/",
-    width: 1080,
-  },
-  {
-    file: path.join(previewDir, "digital-reading-passport.png"),
-    url: "https://reading-passport-xga6.vercel.app/landing",
-    width: 1080,
-    anchor: "세계와 연결되는",
-    anchorOffset: -70,
-  },
-  {
-    file: path.join(thumbDir, "national-heritage-map.png"),
-    url: "https://history-map-chi.vercel.app/",
-    width: 1200,
-  },
-  {
-    file: path.join(previewDir, "national-heritage-map.png"),
-    url: "https://history-map-chi.vercel.app/",
-    width: 1200,
-    anchor: "기록이 지도에 오르기까지",
-    anchorOffset: -90,
-  },
-  {
     file: path.join(thumbDir, "ml-microbit-studio.png"),
     url: "https://ml-microbit.vercel.app/",
     width: 820,

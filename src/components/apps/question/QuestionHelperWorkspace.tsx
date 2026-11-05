@@ -6,14 +6,14 @@ import {
   Eye,
   EyeOff,
   FileText,
-  Loader2,
   Printer,
   RotateCcw,
   Sparkles,
   Target,
 } from "lucide-react";
-import Link from "next/link";
-import { Fragment, FormEvent, ReactNode, useMemo, useState } from "react";
+import { useAiGeneration, savedInput, type AiResult } from "@/components/mvp/useAiGeneration";
+import { GenerationNotice, WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
+import { Fragment, FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
 
@@ -75,13 +75,35 @@ const PROBLEM_TYPES: ProblemType[] = ["빈칸", "단답형", "선택형", "서�
 const CHOICE_MARKS = ["①", "②", "③", "④", "⑤", "⑥"];
 const MATCH_MARKS = ["㉠", "㉡", "㉢", "㉣", "㉤", "㉥"];
 
-export function QuestionHelperWorkspace({ app, spec }: QuestionHelperWorkspaceProps) {
+export function QuestionHelperWorkspace({ app }: QuestionHelperWorkspaceProps) {
   const [values, setValues] = useState<FormValues>(initialValues);
   const [worksheet, setWorksheet] = useState<Worksheet>(() => buildWorksheet(initialValues));
   const [source, setSource] = useState<Source>("draft");
   const [showAnswers, setShowAnswers] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const ai = useAiGeneration(app.slug);
+  const loading = ai.pending;
+  const recovered = useRef(false);
+  const [selectedResult, setSelectedResult] = useState("");
+  const [stage, setStage] = useState(0);
+  const [page, setPage] = useState(0);
   const [copied, setCopied] = useState(false);
+
+  function openResult(data: AiResult, navigate = true) {
+    const restoredValues = savedInput(data, initialValues);
+    const restored = outputToWorksheet(data, restoredValues);
+    if (!restored) return;
+    setValues(restoredValues); setWorksheet(restored); setSource("live"); setPage(0); setSelectedResult(data.requestId);
+    if (navigate) setStage(1);
+  }
+  /* eslint-disable react-hooks/set-state-in-effect -- Restore the last completed worksheet after authentication. */
+  useEffect(() => {
+    if (!ai.latest || recovered.current) return;
+    recovered.current = true;
+    const restoredValues = savedInput(ai.latest, initialValues);
+    const restored = outputToWorksheet(ai.latest, restoredValues);
+    if (restored) { setValues(restoredValues); setWorksheet(restored); setSource("live"); setSelectedResult(ai.latest.requestId); }
+  }, [ai.latest]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const totalPoints = useMemo(
     () => worksheet.problems.reduce((sum, problem) => sum + problem.points, 0),
@@ -91,46 +113,29 @@ export function QuestionHelperWorkspace({ app, spec }: QuestionHelperWorkspacePr
   function updateValue(id: keyof FormValues, value: string) {
     const next = { ...values, [id]: value };
     setValues(next);
-    setWorksheet(buildWorksheet(next));
-    setSource("draft");
     setCopied(false);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    await generateWorksheet();
+  }
+
+  async function generateWorksheet() {
+    if (ai.unavailable || !values.topic.trim()) return;
     setCopied(false);
-    setLoading(true);
-
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 80_000);
-
-    try {
-      const response = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appSlug: app.slug, mode: "text", values }),
-        signal: controller.signal,
-      });
-      const data = await response.json();
-      const generated = outputToWorksheet(data, values);
-      if (generated) {
-        setWorksheet(generated);
-        setSource("live");
-      } else {
-        setWorksheet(buildWorksheet(values));
-        setSource("fallback");
-      }
-    } catch {
-      setWorksheet(buildWorksheet(values));
-      setSource("fallback");
-    } finally {
-      window.clearTimeout(timeout);
-      setLoading(false);
-    }
+    const data = await ai.generate({ values });
+    if (!data) return;
+    const generated = outputToWorksheet(data, values);
+    if (generated) { recovered.current = true; setWorksheet(generated); setSource("live"); setStage(1); setPage(0); setSelectedResult(data.requestId); }
   }
 
   function reset() {
+    setSelectedResult("");
+    recovered.current = true;
     setValues(initialValues);
+    setStage(0);
+    setPage(0);
     setWorksheet(buildWorksheet(initialValues));
     setSource("draft");
     setShowAnswers(false);
@@ -157,28 +162,17 @@ export function QuestionHelperWorkspace({ app, spec }: QuestionHelperWorkspacePr
     source === "live" ? "AI 학습지" : source === "fallback" ? "학습지 초안" : "학습지 미리보기";
 
   return (
-    <main className="mvp-page worksheet-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero worksheet-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <FileText size={17} />
-              학습지 스튜디오
-            </span>
-            <p>{app.category} · {spec.workLabel}</p>
-          </div>
-          <strong>{app.shortDescription}</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-        </div>
-      </section>
-
+    <main className="workspace-page worksheet-page">
+      <WorkspaceHeader title={app.title} steps={["수업 설정", "학습지 보기"]} current={stage} onStep={setStage} busy={loading} quota={ai.quota}
+        onPrevious={stage === 1 ? () => page > 0 ? setPage(page - 1) : setStage(0) : undefined}
+        onNext={stage === 0 ? () => { void generateWorksheet(); } : page < worksheet.problems.length - 1 ? () => setPage(page + 1) : undefined}
+        nextLabel={stage === 0 ? "학습지 만들기 · 1회" : "다음 문항"} nextDisabled={stage === 0 && (ai.unavailable || !values.topic.trim())}
+        actions={stage === 1 ? <span className="workspace-page-count" aria-live="polite">문항 {page + 1} / {worksheet.problems.length}</span> : undefined} />
+      <div className="workspace-body">
+      <GenerationNotice exhausted={ai.quota?.remaining === 0} error={ai.error} pending={loading || Boolean(ai.quota?.busy)} onRetry={() => { ai.clearError(); void ai.refresh(); }} />
+      {ai.history.length > 0 && <label className="workspace-result-picker">저장한 학습지<select value={selectedResult} onChange={(event) => { const result = ai.history.find((item) => item.requestId === event.target.value); if (result) openResult(result); }}><option value="" disabled>학습지 선택</option>{ai.history.map((item, index) => <option key={item.requestId} value={item.requestId}>{index + 1}. {String(item.title || "학습지")}</option>)}</select></label>}
       <section className="worksheet-layout">
-        <form className="worksheet-aside" onSubmit={submit}>
+        <form className="worksheet-aside" onSubmit={submit} hidden={stage !== 0}>
           <div className="worksheet-aside-head">
             <Sparkles size={18} />
             <strong>학습지 설정</strong>
@@ -229,21 +223,17 @@ export function QuestionHelperWorkspace({ app, spec }: QuestionHelperWorkspacePr
           </div>
 
           <div className="worksheet-aside-actions">
-            <button className="button-primary" disabled={loading} type="submit">
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-              {loading ? "학습지 생성 중" : "AI 학습지 만들기"}
-            </button>
             <button className="button-secondary" disabled={loading} type="button" onClick={reset}>
               <RotateCcw size={18} />
               초기화
             </button>
           </div>
           <p className="worksheet-aside-hint">
-            주제와 학년, 유형을 바꾸면 문항이 바로 미리보기로 바뀌고, AI로 만들면 정답과 해설까지 채워집니다.
+            수업 주제와 학년을 고르고 상단의 ‘학습지 만들기’를 눌러 주세요. 문항과 정답·해설이 함께 만들어집니다.
           </p>
         </form>
 
-        <div className="worksheet-main">
+        <div className="worksheet-main" hidden={stage !== 1}>
           <div className="worksheet-toolbar">
             <span className={`worksheet-source worksheet-source-${source}`}>
               {source === "live" ? <Sparkles size={14} /> : <FileText size={14} />}
@@ -270,13 +260,6 @@ export function QuestionHelperWorkspace({ app, spec }: QuestionHelperWorkspacePr
           </div>
 
           <article className={`worksheet-doc${showAnswers ? " is-answer-key" : ""}`} id="worksheet-doc">
-            {loading ? (
-              <div className="worksheet-loading" aria-live="polite">
-                <Loader2 className="animate-spin" size={22} />
-                <span>AI가 학습지를 만드는 중입니다.</span>
-              </div>
-            ) : null}
-
             <header className="worksheet-doc-head">
               <span className="worksheet-doc-kicker">학습지 · {values.level}</span>
               <h2 className="worksheet-doc-title">{worksheet.title}</h2>
@@ -306,7 +289,7 @@ export function QuestionHelperWorkspace({ app, spec }: QuestionHelperWorkspacePr
 
             <ol className="worksheet-problems">
               {worksheet.problems.map((problem, index) => (
-                <li className="worksheet-problem" key={problem.id}>
+                <li className={`worksheet-problem${index === page ? " is-current" : ""}`} key={problem.id}>
                   <div className="worksheet-problem-head">
                     <span className="worksheet-num">{index + 1}</span>
                     <span className="worksheet-type">{problem.type}</span>
@@ -332,6 +315,7 @@ export function QuestionHelperWorkspace({ app, spec }: QuestionHelperWorkspacePr
           </article>
         </div>
       </section>
+      </div>
     </main>
   );
 }

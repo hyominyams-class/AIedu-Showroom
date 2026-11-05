@@ -1,7 +1,8 @@
 "use client";
 
 import { CheckCircle2, Inbox, MessageSquare, RotateCcw, Send } from "lucide-react";
-import Link from "next/link";
+import { PageControls } from "@/components/mvp/PageControls";
+import { WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
@@ -14,7 +15,7 @@ import {
   nowIso,
   relativeTimeLabel,
   saveStoredState,
-  SheetDock,
+  FakeSheetPanel,
   SheetTabData,
   useSheetDock,
   useSheetWriter,
@@ -101,6 +102,10 @@ function buildSeedState(base: "static" | "fresh"): SuggestionState {
 const STATIC_SEED = buildSeedState("static");
 
 export function SuggestionBoxWorkspace({ app }: SuggestionWorkspaceProps) {
+  const [stage, setStage] = useState(0);
+  const [boardPage, setBoardPage] = useState(0);
+  const [replyId, setReplyId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
   const [state, setState] = useState<SuggestionState>(STATIC_SEED);
   const [alias, setAlias] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -174,6 +179,9 @@ export function SuggestionBoxWorkspace({ app }: SuggestionWorkspaceProps) {
   }
 
   function resetAll() {
+    setReplyId(null);
+    setReplyText("");
+    setBoardPage(0);
     clearStoredState(STORAGE_KEY);
     setState(buildSeedState("fresh"));
     setAlias("");
@@ -238,28 +246,11 @@ export function SuggestionBoxWorkspace({ app }: SuggestionWorkspaceProps) {
   };
 
   return (
-    <main className="mvp-page suggestapp-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <Inbox size={17} />
-              학급 소통 보드
-            </span>
-            <p>{app.category} · 승인 시트 연동</p>
-          </div>
-          <strong>{app.shortDescription}</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-      </div>
-      </section>
-
+    <main className="workspace-page suggestapp-page">
+      <WorkspaceHeader title={app.title} navigation="tabs" steps={["건의 작성", "게시판", "검토 장부"]} current={stage} onStep={setStage} onPrevious={stage > 0 ? () => setStage(stage - 1) : undefined} onNext={stage < 2 ? () => setStage(stage + 1) : undefined} actions={<span className="workspace-local-note">이 기기에서 체험</span>} />
+      <div className="workspace-body">
       <section className="suggestapp-layout">
-        <form className="suggestapp-form-panel" onSubmit={submitSuggestion}>
+        <form hidden={stage !== 0} className="suggestapp-form-panel" onSubmit={submitSuggestion}>
           <div className="mvp-panel-heading">
             <strong>건의 보내기</strong>
             <span className="suggestapp-anon-chip">별명으로 제출</span>
@@ -322,7 +313,7 @@ export function SuggestionBoxWorkspace({ app }: SuggestionWorkspaceProps) {
           </button>
         </form>
 
-        <section className="suggestapp-board-panel" aria-label="건의 게시판">
+        <section hidden={stage !== 1} className="suggestapp-board-panel" aria-label="건의 게시판">
           <div className="suggestapp-board-head">
             <strong>우리 반 건의 게시판</strong>
             <div className="suggestapp-board-stats">
@@ -333,7 +324,7 @@ export function SuggestionBoxWorkspace({ app }: SuggestionWorkspaceProps) {
                 className={`suggestapp-pending-chip ${pendingCount > 0 ? "is-waiting" : ""}`}
                 onClick={() => {
                   dock.showTab("inbox");
-                  dock.onOpenChange(true);
+                  setStage(2);
                 }}
               >
                 검토 중 {pendingCount}
@@ -341,15 +332,16 @@ export function SuggestionBoxWorkspace({ app }: SuggestionWorkspaceProps) {
             </div>
           </div>
 
+          <PageControls page={Math.min(boardPage, Math.max(0, Math.ceil(published.length / 3) - 1))} total={Math.ceil(published.length / 3)} onPage={setBoardPage} label="건의 게시판 페이지" />
           {published.length === 0 ? (
             <div className="suggestapp-empty">
               <Inbox size={26} />
               <strong>아직 게시된 건의가 없어요</strong>
-              <p>첫 건의를 보내고, 시트에서 승인해 보세요.</p>
+              <p>첫 건의를 보내고 검토 장부에서 승인해 주세요.</p>
             </div>
           ) : (
             <ul className="suggestapp-card-list">
-              {published.map((suggestion) => (
+              {published.slice(Math.min(boardPage, Math.max(0, Math.ceil(published.length / 3) - 1)) * 3, Math.min(boardPage, Math.max(0, Math.ceil(published.length / 3) - 1)) * 3 + 3).map((suggestion) => (
                 <li className="suggestapp-card" key={suggestion.id}>
                   <div className="suggestapp-card-top">
                     <span className={`suggestapp-tag is-${suggestion.category}`}>{suggestion.category}</span>
@@ -370,6 +362,12 @@ export function SuggestionBoxWorkspace({ app }: SuggestionWorkspaceProps) {
                   ) : (
                     <span className="suggestapp-reply-waiting">답변 준비 중</span>
                   )}
+                  {replyId === suggestion.id ? <form className="suggestapp-reply-form" onSubmit={(event) => {
+                    event.preventDefault();
+                    if (!replyText.trim() || writing) return;
+                    const text = replyText.trim();
+                    write(() => { setState((current) => ({ ...current, suggestions: current.suggestions.map((item) => item.id === suggestion.id ? { ...item, reply: text } : item) })); setReplyId(null); }, { flashIds: [suggestion.id] });
+                  }}><label className="mvp-field"><span>선생님 답변</span><textarea maxLength={500} required value={replyText} onChange={(event) => setReplyText(event.target.value)} /></label><button type="submit" disabled={writing} className="button-primary">답변 저장</button><button type="button" className="button-secondary" onClick={() => setReplyId(null)}>취소</button></form> : <button className="button-secondary suggestapp-edit-reply" type="button" onClick={() => { setReplyId(suggestion.id); setReplyText(suggestion.reply); }}>{suggestion.reply ? "답변 수정" : "답변 쓰기"}</button>}
                 </li>
               ))}
             </ul>
@@ -377,19 +375,16 @@ export function SuggestionBoxWorkspace({ app }: SuggestionWorkspaceProps) {
         </section>
       </section>
 
-      <div className="suggestapp-dock-slot">
-        <SheetDock
+      <div hidden={stage !== 2} className="workspace-records-panel">
+        <FakeSheetPanel
           fileName={SHEET_FILE_NAME}
           tabs={[inboxTab, statsTab]}
           activeTabId={dock.activeTabId}
           onSelectTab={dock.showTab}
-          open={dock.open}
-          onOpenChange={dock.onOpenChange}
           writing={writing}
           flashRowIds={flashRowIds}
-          newRowCount={dock.newRowCount}
-          hint="승인 체크로 게시판에 올려요"
         />
+      </div>
       </div>
     </main>
   );

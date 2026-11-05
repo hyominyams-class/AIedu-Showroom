@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowLeftRight, CircleDot, Lock, RotateCcw, Shuffle, Users } from "lucide-react";
-import Link from "next/link";
+import { ArrowLeftRight, CircleDot, Lock, RotateCcw, Shuffle } from "lucide-react";
+import { WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
@@ -13,7 +13,7 @@ import {
   newRowId,
   nowIso,
   saveStoredState,
-  SheetDock,
+  FakeSheetPanel,
   SheetTabData,
   useSheetDock,
   useSheetWriter,
@@ -211,6 +211,7 @@ function drawSeats(students: Student[]): { seats: number[]; satisfied: boolean }
 const STATIC_SEED = buildSeedState("static");
 
 export function SeatShuffleWorkspace({ app }: SeatWorkspaceProps) {
+  const [stage, setStage] = useState(0);
   const [state, setState] = useState<SeatState>(STATIC_SEED);
   const [revealCount, setRevealCount] = useState(COLS * ROWS);
   const [drawing, setDrawing] = useState(false);
@@ -404,28 +405,11 @@ export function SeatShuffleWorkspace({ app }: SeatWorkspaceProps) {
   };
 
   return (
-    <main className="mvp-page seatapp-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <Users size={17} />
-              학급 운영 보드
-            </span>
-            <p>{app.category} · 명렬표 시트 연동</p>
-          </div>
-          <strong>{app.shortDescription}</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-        </div>
-      </section>
-
+    <main className="workspace-page seatapp-page">
+      <WorkspaceHeader title={app.title} navigation="tabs" steps={["명단·조건", "좌석표", "장부"]} current={stage} onStep={setStage} onPrevious={stage > 0 ? () => setStage(stage - 1) : undefined} onNext={stage < 2 ? () => setStage(stage + 1) : undefined} actions={<span className="workspace-local-note">이 기기에서 체험</span>} />
+      <div className="workspace-body">
       <section className="seatapp-layout">
-        <aside className="seatapp-side-panel">
+        <aside hidden={stage !== 0} className="seatapp-side-panel">
           <div className="mvp-panel-heading">
             <strong>명렬표</strong>
             <button
@@ -433,7 +417,7 @@ export function SeatShuffleWorkspace({ app }: SeatWorkspaceProps) {
               className="seatapp-sheet-link"
               onClick={() => {
                 dock.showTab("roster");
-                dock.onOpenChange(true);
+                setStage(2);
               }}
             >
               시트에서 관리
@@ -470,7 +454,7 @@ export function SeatShuffleWorkspace({ app }: SeatWorkspaceProps) {
           </ul>
 
           <div className="seatapp-side-actions">
-            <button type="button" className="button-primary justify-center" onClick={startDraw} disabled={drawing}>
+            <button type="button" className="button-primary justify-center" onClick={() => { setStage(1); startDraw(); }} disabled={drawing}>
               <Shuffle size={17} />
               {drawing ? "뽑는 중…" : `${state.round + 1}회차 자리 뽑기`}
             </button>
@@ -481,7 +465,7 @@ export function SeatShuffleWorkspace({ app }: SeatWorkspaceProps) {
           </div>
         </aside>
 
-        <section className="seatapp-board-panel" aria-label="교실 좌석표">
+        <section hidden={stage !== 1} className="seatapp-board-panel" aria-label="교실 좌석표">
           <div className="seatapp-blackboard">칠판</div>
 
           <div className={`seatapp-grid ${drawing ? "is-drawing" : ""}`}>
@@ -522,7 +506,7 @@ export function SeatShuffleWorkspace({ app }: SeatWorkspaceProps) {
                         </>
                       ) : (
                         <strong className="seatapp-seat-mystery" aria-hidden="true">
-                          ?
+                          •
                         </strong>
                       )}
                     </button>
@@ -547,19 +531,16 @@ export function SeatShuffleWorkspace({ app }: SeatWorkspaceProps) {
         </section>
       </section>
 
-      <div className="seatapp-dock-slot">
-        <SheetDock
+      <div hidden={stage !== 2} className="workspace-records-panel">
+        <FakeSheetPanel
           fileName={SHEET_FILE_NAME}
           tabs={[rosterTab, chartTab, recordTab]}
           activeTabId={dock.activeTabId}
           onSelectTab={dock.showTab}
-          open={dock.open}
-          onOpenChange={dock.onOpenChange}
           writing={writing}
           flashRowIds={flashRowIds}
-          newRowCount={dock.newRowCount}
-          hint="명렬표 · 좌석표 · 자리 기록"
         />
+      </div>
       </div>
     </main>
   );

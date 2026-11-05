@@ -1,12 +1,11 @@
 "use client";
 
-import Image from "next/image";
-import { BookOpen, Check, ChevronLeft, ChevronRight, Plus, RotateCcw, Shuffle } from "lucide-react";
-import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { BookOpen, Check, Plus, RotateCcw, Shuffle } from "lucide-react";
+import { PageControls } from "@/components/mvp/PageControls";
+import { WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
-import { versionVisualAsset } from "@/lib/visuals";
 
 type VocabCardsWorkspaceProps = {
   app: AppItem;
@@ -31,13 +30,31 @@ const starterCards: VocabCard[] = [
   { id: "v-6", word: "wonder", meaning: "궁금해하다", example: "I wonder why the sky changes color.", hint: "왜 그럴까", known: false },
 ];
 
-export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
+export function VocabCardsWorkspace({ app }: VocabCardsWorkspaceProps) {
+  const [stage, setStage] = useState(0);
+  const [listPage, setListPage] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
+  const [notice, setNotice] = useState("");
   const [cards, setCards] = useState<VocabCard[]>(starterCards);
   const [activeIndex, setActiveIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [word, setWord] = useState("journey");
   const [meaning, setMeaning] = useState("여행");
   const [example, setExample] = useState("Reading is a journey.");
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Restore user cards after browser hydration. */
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("showroom:vocab:v2") || "null");
+      if (Array.isArray(saved) && saved.length > 0 && saved.length <= 200 && saved.every((card) => card && [card.id, card.word, card.meaning, card.example, card.hint].every((value) => typeof value === "string") && typeof card.known === "boolean")) setCards(saved);
+    } catch { /* Start with the example cards when storage is unavailable. */ }
+    setHydrated(true);
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!hydrated) return;
+    try { localStorage.setItem("showroom:vocab:v2", JSON.stringify(cards)); } catch { /* Learning remains available without browser storage. */ }
+  }, [cards, hydrated]);
 
   const activeCard = cards[activeIndex] ?? cards[0];
   const knownCount = cards.filter((card) => card.known).length;
@@ -61,10 +78,11 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
     event.preventDefault();
     const cleanWord = word.trim();
     const cleanMeaning = meaning.trim();
-    if (!cleanWord || !cleanMeaning) return;
+    if (!cleanWord || !cleanMeaning) { setNotice("영단어와 뜻을 입력해 주세요."); return; }
+    if (cards.length >= 200) { setNotice("한 번에 200개 단어까지 학습할 수 있어요."); return; }
 
     const nextCard = {
-      id: `v-${Date.now()}`,
+      id: crypto.randomUUID(),
       word: cleanWord,
       meaning: cleanMeaning,
       example: example.trim() || `${cleanWord} is today's word.`,
@@ -77,6 +95,7 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
     setWord("");
     setMeaning("");
     setExample("");
+    setNotice(`${cleanWord} 단어를 추가했어요.`);
   }
 
   function handleKnownButton() {
@@ -112,6 +131,8 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
 
   function resetCards() {
     setCards(starterCards);
+    setListPage(0);
+    setNotice("");
     setActiveIndex(0);
     setFlipped(false);
     setWord("journey");
@@ -120,42 +141,21 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
   }
 
   return (
-    <main className="mvp-page vocab-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <BookOpen size={17} />
-              영단어 암기
-            </span>
-            <p>{app.category} · {spec.workLabel}</p>
-          </div>
-          <strong>{app.shortDescription}</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-        </div>
-      </section>
-
+    <main className="workspace-page vocab-page">
+      <WorkspaceHeader title={app.title} navigation="tabs" steps={["단어 준비", "카드 학습", "단어 목록"]} current={stage} onStep={setStage}
+        onPrevious={stage === 1 ? () => move(-1) : stage > 0 ? () => setStage(stage - 1) : undefined}
+        onNext={stage === 0 ? () => setStage(1) : stage === 1 ? () => move(1) : undefined} nextLabel={stage === 0 ? "학습 시작" : "다음 카드"}
+        actions={<span className="workspace-page-count">암기 {knownCount} / {cards.length}</span>} />
+      <div className="workspace-body">
+      {notice && <p className="workspace-notice" role="status">{notice}</p>}
       <section className="vocab-layout">
-        <form className="vocab-add-panel" onSubmit={addCard}>
+        <form hidden={stage !== 0} className="vocab-add-panel" onSubmit={addCard}>
           <div className="mvp-panel-heading">
             <Plus size={18} />
             <strong>단어 추가</strong>
           </div>
           <div className="vocab-mascot-card">
-            <Image
-              src={versionVisualAsset("/visuals/landing-previews/english-vocab-cards.png")}
-              alt=""
-              width={112}
-              height={112}
-              className="vocab-mascot-image"
-              preload
-              unoptimized
-            />
+            <div className="vocab-learning-mark" aria-hidden="true"><BookOpen size={32} /></div>
             <div>
               <span>암기율 {progress}%</span>
               <strong>{knownCount}/{cards.length}개</strong>
@@ -164,15 +164,15 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
           </div>
           <label className="mvp-field">
             <span>영단어</span>
-            <input value={word} placeholder="예: journey" onChange={(event) => setWord(event.target.value)} />
+            <input maxLength={80} required value={word} placeholder="예: journey" onChange={(event) => setWord(event.target.value)} />
           </label>
           <label className="mvp-field">
             <span>뜻</span>
-            <input value={meaning} placeholder="예: 여행" onChange={(event) => setMeaning(event.target.value)} />
+            <input maxLength={150} required value={meaning} placeholder="예: 여행" onChange={(event) => setMeaning(event.target.value)} />
           </label>
           <label className="mvp-field">
             <span>예문</span>
-            <input value={example} placeholder="예: Reading is a journey." onChange={(event) => setExample(event.target.value)} />
+            <input maxLength={300} value={example} placeholder="예: Reading is a journey." onChange={(event) => setExample(event.target.value)} />
           </label>
           <button className="button-primary justify-center" type="submit">
             <Plus size={18} />
@@ -180,7 +180,7 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
           </button>
         </form>
 
-        <section className="vocab-card-panel" aria-label="영단어 암기 카드">
+        <section hidden={stage !== 1} className="vocab-card-panel" aria-label="영단어 암기 카드">
           <div className="vocab-game-strip">
             <span>{activeIndex + 1}/{cards.length}</span>
             <span>{activeCard.known ? "암기 완료" : "복습 중"}</span>
@@ -219,17 +219,9 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
               </button>
 
               <div className="vocab-control-row">
-                <button className="button-secondary" type="button" onClick={() => move(-1)}>
-                  <ChevronLeft size={18} />
-                  이전
-                </button>
                 <button className="button-primary" type="button" onClick={handleKnownButton} disabled={!flipped && !activeCard.known}>
                   <Check size={18} />
                   {activeCard.known ? "다시 복습" : "외웠어요"}
-                </button>
-                <button className="button-secondary" type="button" onClick={() => move(1)}>
-                  다음
-                  <ChevronRight size={18} />
                 </button>
               </div>
               {!flipped && !activeCard.known ? (
@@ -249,8 +241,12 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
             </button>
           </div>
 
+        </section>
+      </section>
+          <div hidden={stage !== 2}>
+          <PageControls page={listPage} total={Math.ceil(cards.length / 10)} onPage={setListPage} label="단어 목록 페이지" />
           <div className="vocab-list" aria-label="단어 목록">
-            {cards.map((card, index) => (
+            {cards.slice(listPage * 10, listPage * 10 + 10).map((card, offset) => { const index = listPage * 10 + offset; return (
               <button
                 className={cards[activeIndex]?.id === card.id ? "is-active" : ""}
                 key={card.id}
@@ -258,16 +254,17 @@ export function VocabCardsWorkspace({ app, spec }: VocabCardsWorkspaceProps) {
                 onClick={() => {
                   setActiveIndex(index);
                   setFlipped(false);
+                  setStage(1);
                 }}
               >
                 <span>{index + 1}</span>
                 <strong>{card.word}</strong>
                 <em>{card.known ? "완료" : "복습"}</em>
               </button>
-            ))}
+            ); })}
           </div>
-        </section>
-      </section>
+          </div>
+      </div>
     </main>
   );
 }

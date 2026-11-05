@@ -7,6 +7,7 @@ const heroShowcaseApps = apps;
 const heroMarqueeApps = [...heroShowcaseApps, ...heroShowcaseApps];
 
 const landingPreviewImages: Partial<Record<AppItem["slug"], string>> = {
+  "class-game-management": "/visuals/published-apps/class-game-management.webp",
   "author-meet-chatbot": "/visuals/landing-previews/author-meet-chatbot.png",
   "class-timer-station": "/visuals/landing-previews/class-timer-station.png",
   "concept-explainer": "/visuals/landing-previews/concept-explainer.png",
@@ -17,7 +18,6 @@ const landingPreviewImages: Partial<Record<AppItem["slug"], string>> = {
   "picturebook-scene-maker": "/visuals/landing-previews/picturebook-scene-maker.png",
   "poetry-picture-maker": "/visuals/landing-previews/poetry-picture-maker.png",
   "ai-question-helper": "/visuals/landing-previews/ai-question-helper.png",
-  "digital-reading-passport": "/visuals/landing-previews/digital-reading-passport-hero.png",
   "ml-microbit-studio": "/visuals/landing-previews/ml-microbit-studio-hero.png",
   "neon-rhythm-runner": "/visuals/landing-previews/neon-rhythm-runner-hero.png",
   "liberation-text-adventure": "/visuals/landing-previews/liberation-text-adventure-hero.png",

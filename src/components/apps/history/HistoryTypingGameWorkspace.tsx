@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { Keyboard, Pause, Play, RotateCcw } from "lucide-react";
+import { Pause, Play, RotateCcw } from "lucide-react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
 
@@ -151,13 +151,13 @@ function createKeyword(id: number, existing: FallingKeyword[], difficulty: numbe
     hint: source.hint,
     lane: bestLane,
     x: Math.max(14, Math.min(lanes[bestLane] ?? 14, logicalWidth - width - 14)),
-    y: -62,
+    y: Math.min(-62, bestHeadroom - 80),
     speed: 34 + difficulty * 34 + (id % 3) * 4,
     width,
   };
 }
 
-export function HistoryTypingGameWorkspace({ app, spec }: HistoryTypingGameWorkspaceProps) {
+export function HistoryTypingGameWorkspace({ app }: HistoryTypingGameWorkspaceProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -222,12 +222,16 @@ export function HistoryTypingGameWorkspace({ app, spec }: HistoryTypingGameWorks
     }
 
     const remaining: FallingKeyword[] = [];
+    const laneFront = new Map<number, number>();
     let lost = 0;
-    for (const word of game.words) {
+    for (const word of [...game.words].sort((a, b) => b.y - a.y)) {
       const moved = { ...word, y: word.y + word.speed * (deltaMs / 1000) };
+      const front = laneFront.get(word.lane);
+      if (front !== undefined) moved.y = Math.min(moved.y, front - 80);
       if (moved.y >= floorY) {
         lost += 1;
       } else {
+        laneFront.set(word.lane, moved.y);
         remaining.push(moved);
       }
     }
@@ -477,34 +481,14 @@ export function HistoryTypingGameWorkspace({ app, spec }: HistoryTypingGameWorks
   const inputDisabled = snapshot.mode !== "playing";
 
   return (
-    <main className="history-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero history-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <Keyboard size={17} />
-              성벽 방어전
-            </span>
-            <p>{app.category} · {spec.workLabel}</p>
-          </div>
-          <strong>1분 동안 성벽으로 떨어지는 역사 키워드를 입력해 막아내는 타자 게임입니다.</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-        </div>
-      </section>
-
+    <main className="workspace-page game-workspace history-page">
+      <WorkspaceHeader title={app.title} steps={["준비", "성벽 방어", "결과"]} current={snapshot.mode === "ready" ? 0 : snapshot.mode === "ended" ? 2 : 1} />
       <section className="history-stage">
         <div className="history-canvas-wrap">
           <canvas
             ref={canvasRef}
             aria-label="역사 키워드가 위에서 성벽으로 내려오는 타자 게임 화면"
             className="history-canvas"
-            height={canvasHeight}
-            width={logicalWidth}
           />
         </div>
 

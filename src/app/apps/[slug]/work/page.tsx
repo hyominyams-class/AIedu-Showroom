@@ -18,7 +18,6 @@ import { QuestionHelperWorkspace } from "@/components/apps/question/QuestionHelp
 import { TimerDashboardWorkspace } from "@/components/apps/timer/TimerDashboardWorkspace";
 import { VocabCardsWorkspace } from "@/components/apps/vocab/VocabCardsWorkspace";
 import { AccessGate } from "@/components/layout/AccessGate";
-import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { apps, getAppBySlug, type AppItem } from "@/data/apps";
 import { getMvpSpec, type MvpSpec } from "@/data/mvp";
@@ -88,9 +87,8 @@ export default async function AppWorkPage({ params }: AppWorkPageProps) {
 
   return (
     <AccessGate>
-      <Header backHref="/library" backLabel="앱 선택" />
+      <Header compact />
       <Workspace app={app} spec={spec} />
-      <Footer />
     </AccessGate>
   );
 }

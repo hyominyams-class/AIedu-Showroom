@@ -112,7 +112,7 @@ export function FakeSheetPanel({
           ) : (
             <>
               <Check size={13} aria-hidden="true" />
-              드라이브에 저장됨
+              이 기기에 저장됨
             </>
           )}
         </span>
@@ -351,38 +351,21 @@ export function useSheetDock(initialTabId: string) {
 }
 
 export function useSheetWriter() {
-  const [writing, setWriting] = useState(false);
   const [flashRowIds, setFlashRowIds] = useState<string[]>([]);
   const timersRef = useRef<number[]>([]);
-  const pendingRef = useRef(0);
-
-  useEffect(
-    () => () => {
-      timersRef.current.forEach((timer) => window.clearTimeout(timer));
-    },
-    [],
-  );
-
-  const write = useCallback((apply: () => void, options?: { flashIds?: string[]; delay?: number }) => {
-    pendingRef.current += 1;
-    setWriting(true);
-    const timer = window.setTimeout(() => {
-      apply();
-      pendingRef.current = Math.max(0, pendingRef.current - 1);
-      if (pendingRef.current === 0) setWriting(false);
-      const flashIds = options?.flashIds;
-      if (flashIds?.length) {
-        setFlashRowIds((current) => [...current, ...flashIds]);
-        const cleanup = window.setTimeout(() => {
-          setFlashRowIds((current) => current.filter((id) => !flashIds.includes(id)));
-        }, 2600);
-        timersRef.current.push(cleanup);
-      }
-    }, options?.delay ?? 620);
-    timersRef.current.push(timer);
+  useEffect(() => () => { timersRef.current.forEach((timer) => window.clearTimeout(timer)); }, []);
+  const write = useCallback((apply: () => void, options?: { flashIds?: string[] }) => {
+    // These are local records. Commit immediately so navigation cannot cancel a write.
+    apply();
+    const ids = options?.flashIds;
+    if (ids?.length) {
+      setFlashRowIds((current) => [...current, ...ids]);
+      timersRef.current.push(window.setTimeout(() => {
+        setFlashRowIds((current) => current.filter((id) => !ids.includes(id)));
+      }, 2600));
+    }
   }, []);
-
-  return { writing, flashRowIds, write };
+  return { writing: false, flashRowIds, write };
 }
 
 export function loadStoredState<T>(key: string, version: number): T | null {

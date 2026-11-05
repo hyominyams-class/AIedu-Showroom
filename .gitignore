@@ -19,6 +19,8 @@
 
 # next.js
 /.next/
+/.next-upgrade/
+/.next-production/
 /out/
 
 # production
@@ -38,6 +40,7 @@ yarn-error.log*
 .env*
 !.env.example
 local.env
+.showroom-data/
 
 # vercel
 .vercel

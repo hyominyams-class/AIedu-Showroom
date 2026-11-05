@@ -1,20 +1,17 @@
 "use client";
 
+import { useAiGeneration, savedInput, type AiResult } from "@/components/mvp/useAiGeneration";
+import { GenerationNotice, WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
+
 import {
   BarChart3,
   BookOpen,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Circle,
   Clipboard,
   CornerDownRight,
   HelpCircle,
-  Layers,
-  LayoutGrid,
-  Lightbulb,
   ListOrdered,
-  Loader2,
   MessageCircleQuestion,
   MessageSquareQuote,
   RotateCcw,
@@ -24,11 +21,10 @@ import {
   Workflow,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import Link from "next/link";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
-import { MvpOutput, buildLocalOutput } from "@/components/mvp/MvpStorage";
+import { MvpOutput } from "@/components/mvp/MvpStorage";
 
 type ConceptExplainerWorkspaceProps = {
   app: AppItem;
@@ -96,12 +92,7 @@ const initialValues = {
 const levelOptions = ["초등 저학년", "초등 고학년", "중학생", "고등학생"];
 const lengthOptions = ["핵심 내용만", "자세히"];
 
-const LOADING_STAGES = [
-  "질문 살펴보는 중",
-  "눈높이에 맞춰 설명 쓰는 중",
-  "표·예시·도식 고르는 중",
-  "확인 문제 만드는 중",
-];
+
 
 const BLOCK_META: Record<ConceptAnswerBlock["type"], { label: string; icon: LucideIcon }> = {
   paragraph: { label: "설명", icon: BookOpen },
@@ -120,21 +111,18 @@ type MarkdownBlock =
   | { type: "ordered"; items: string[] }
   | { type: "unordered"; items: string[] };
 
-export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspaceProps) {
+export function ConceptExplainerWorkspace({ app }: ConceptExplainerWorkspaceProps) {
   const [values, setValues] = useState(initialValues);
   const [board, setBoard] = useState<ConceptOutput | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loadingStage, setLoadingStage] = useState(0);
+  const ai = useAiGeneration(app.slug);
+  const loading = ai.pending;
+  const recovered = useRef(false);
+  const [selectedResult, setSelectedResult] = useState("");
+  const [stage, setStage] = useState(0);
   const [source, setSource] = useState<"live" | "fallback" | "local">("local");
   const [copied, setCopied] = useState(false);
-  const [viewMode, setViewMode] = useState<"all" | "steps">("all");
   const [stepIndex, setStepIndex] = useState(0);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(() => new Set());
-
-  const completion = useMemo(() => {
-    const count = [values.topic, values.sourceSentence, values.level, values.notes, values.length].filter((item) => item.trim()).length;
-    return Math.round((count / 5) * 100);
-  }, [values]);
 
   const sections = useMemo<AnswerSection[]>(() => {
     if (!board) return [];
@@ -147,74 +135,42 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
 
   const safeStep = Math.min(stepIndex, Math.max(sections.length - 1, 0));
   const isLastStep = safeStep >= sections.length - 1;
-  const showSteps = viewMode === "steps" && sections.length > 1;
-
-  useEffect(() => {
-    if (!loading) return undefined;
-    const timer = window.setInterval(() => {
-      setLoadingStage((stage) => Math.min(stage + 1, LOADING_STAGES.length - 1));
-    }, 3200);
-    return () => window.clearInterval(timer);
-  }, [loading]);
+  const showSteps = sections.length > 1;
 
   function updateValue(id: keyof typeof values, value: string) {
     setValues((current) => ({ ...current, [id]: value }));
   }
 
+  function openResult(data: AiResult, navigate = true) {
+    const next = toConceptOutput(data);
+    if (!next) return;
+    setValues(savedInput(data, initialValues));
+    setBoard(next);
+    setSource("live");
+    setSelectedResult(data.requestId);
+    setStepIndex(0);
+    setCheckedIds(new Set());
+    if (navigate) setStage(2);
+  }
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Restore this browser's saved answer after the authenticated request. */
+  useEffect(() => {
+    if (!ai.latest || recovered.current) return;
+    recovered.current = true;
+    const restored = toConceptOutput(ai.latest);
+    if (!restored) return;
+    setBoard(restored);
+    setValues(savedInput(ai.latest, initialValues));
+    setSource("live");
+    setSelectedResult(ai.latest.requestId);
+  }, [ai.latest]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   async function runGenerate(current: typeof initialValues) {
-    setLoading(true);
-    setLoadingStage(0);
+    if (ai.unavailable || !current.topic.trim()) return;
     setCopied(false);
-
-    const fallback = buildConceptFallback(app, spec, current);
-
-    try {
-      const response = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          appSlug: app.slug,
-          mode: "text",
-          values: current,
-        }),
-      });
-      const data = await response.json();
-      if (data?.ok) {
-        const isLive = data.source === "live";
-        const answerBlocks = normalizeAnswerBlocks(data.answerBlocks, fallback.answerBlocks);
-        // Treat the answer as live only when the model's blocks survived validation;
-        // otherwise fall back title/lead too, so the heading never mismatches the body.
-        const blocksAreLive = answerBlocks.length > 0 && answerBlocks !== fallback.answerBlocks;
-        const live = isLive && blocksAreLive;
-        const liveEmoji = normalizeEmoji(data.emoji);
-        const liveNotes = Array.isArray(data.notes)
-          ? data.notes.filter((note: unknown): note is string => typeof note === "string" && Boolean(note.trim()))
-          : [];
-        setBoard({
-          ...fallback,
-          answerMeta: live && data.answerMeta ? normalizeAnswerMeta(data.answerMeta, fallback.answerMeta) : fallback.answerMeta,
-          title: live && data.title ? data.title : fallback.title,
-          lead: live && data.lead ? data.lead : fallback.lead,
-          emoji: live && liveEmoji ? liveEmoji : fallback.emoji,
-          cards: live && Array.isArray(data.cards) && data.cards.length ? data.cards.slice(0, 4) : fallback.cards,
-          answerBlocks: blocksAreLive ? answerBlocks : fallback.answerBlocks,
-          notes: live && liveNotes.length ? liveNotes : fallback.notes,
-          source: live ? "live" : "fallback",
-          updatedAt: new Date().toISOString(),
-        });
-        setSource(live ? "live" : "fallback");
-      } else {
-        setBoard(fallback);
-        setSource("fallback");
-      }
-    } catch {
-      setBoard(fallback);
-      setSource("fallback");
-    } finally {
-      setLoading(false);
-      setStepIndex(0);
-      setCheckedIds(new Set());
-    }
+    const data = await ai.generate({ values: current });
+    if (data) { recovered.current = true; openResult(data); }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -261,7 +217,10 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
   }
 
   function reset() {
+    setSelectedResult("");
+    recovered.current = true;
     setValues(initialValues);
+    setStage(0);
     setBoard(null);
     setSource("local");
     setCopied(false);
@@ -270,33 +229,22 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
   }
 
   return (
-    <main className="mvp-page concept-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <MessageCircleQuestion size={17} />
-              학습 설명 캔버스
-            </span>
-            <p>{app.category} · {spec.workLabel}</p>
-          </div>
-          <strong>모르는 단어나 문장을 수업 맥락에 맞춰 쉽게 풀어줍니다.</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-        </div>
-      </section>
-
+    <main className="workspace-page concept-page">
+      <WorkspaceHeader title={app.title} steps={["질문", "수업 상황", "설명"]} current={stage} onStep={setStage} canVisitStep={(index) => index === 0 || (index === 1 && Boolean(values.topic.trim())) || (index === 2 && Boolean(board))} busy={loading} quota={ai.quota}
+        onPrevious={stage === 2 ? () => safeStep > 0 ? setStepIndex(safeStep - 1) : setStage(1) : stage === 1 ? () => setStage(0) : undefined}
+        onNext={stage === 0 ? () => setStage(1) : stage === 1 ? () => { void runGenerate(values); } : !isLastStep ? () => setStepIndex(safeStep + 1) : undefined}
+        nextLabel={stage === 1 ? "설명 만들기 · 1회" : "다음"} nextDisabled={!values.topic.trim() || (stage === 1 && ai.unavailable)}
+        actions={stage === 2 ? <span className="workspace-page-count" aria-live="polite">{safeStep + 1} / {sections.length}</span> : undefined} />
+      <div className="workspace-body">
+      <GenerationNotice exhausted={ai.quota?.remaining === 0} error={ai.error} pending={loading || Boolean(ai.quota?.busy)} onRetry={() => { ai.clearError(); void ai.refresh(); }} />
+      {ai.history.length > 0 && <label className="workspace-result-picker">저장한 설명<select value={selectedResult} onChange={(event) => { const result = ai.history.find((item) => item.requestId === event.target.value); if (result) openResult(result); }}><option value="" disabled>설명 선택</option>{ai.history.map((item, index) => <option key={item.requestId} value={item.requestId}>{index + 1}. {String(item.title || "설명")}</option>)}</select></label>}
       <section className="concept-layout">
-        <form className="concept-control-panel" onSubmit={submit}>
+        <form className="concept-control-panel" onSubmit={submit} hidden={stage === 2}>
           <div className="mvp-panel-heading">
             <Search size={18} />
-            <strong>질문 입력</strong>
+            <strong>{stage === 0 ? "궁금한 내용" : "수업 상황"}</strong>
           </div>
-          <label className="mvp-field">
+          <label className="mvp-field" hidden={stage !== 0}>
             <span>궁금한 내용</span>
             <textarea
               className="concept-question-input"
@@ -305,7 +253,7 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
               onChange={(event) => updateValue("topic", event.target.value)}
             />
           </label>
-          <label className="mvp-field">
+          <label className="mvp-field" hidden={stage !== 0}>
             <span>학년</span>
             <select value={values.level} onChange={(event) => updateValue("level", event.target.value)}>
               {levelOptions.map((option) => (
@@ -313,7 +261,7 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
               ))}
             </select>
           </label>
-          <label className="mvp-field">
+          <label className="mvp-field" hidden={stage !== 1}>
             <span>어디에서 봤나요</span>
             <textarea
               placeholder="예: 교과서에 '경도와 위도'라는 말이 함께 나왔어요."
@@ -321,7 +269,7 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
               onChange={(event) => updateValue("sourceSentence", event.target.value)}
             />
           </label>
-          <label className="mvp-field">
+          <label className="mvp-field" hidden={stage !== 1}>
             <span>배우는 내용</span>
             <textarea
               placeholder="예: 과학 시간에 물의 상태 변화를 배우고 있어요."
@@ -329,7 +277,7 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
               onChange={(event) => updateValue("notes", event.target.value)}
             />
           </label>
-          <label className="mvp-field">
+          <label className="mvp-field" hidden={stage !== 1}>
             <span>답변 길이</span>
             <select value={values.length} onChange={(event) => updateValue("length", event.target.value)}>
               {lengthOptions.map((option) => (
@@ -337,23 +285,7 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
               ))}
             </select>
           </label>
-          <div className="concept-readiness">
-            {source === "local" ? (
-              <>
-                <span>질문 준비</span>
-                <strong>{completion}%</strong>
-              </>
-            ) : (
-              <span className={`concept-source-badge is-${source}`}>
-                {source === "live" ? "AI 답변" : "예시 답변"}
-              </span>
-            )}
-          </div>
           <div className="mvp-action-row">
-            <button className={`button-primary${board || loading ? "" : " imagegen-nudge"}`} disabled={loading} type="submit">
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <Lightbulb size={18} />}
-              {loading ? "답변 중" : "답변 받기"}
-            </button>
             <button className="button-secondary" type="button" onClick={reset}>
               <RotateCcw size={18} />
               초기화
@@ -361,29 +293,11 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
           </div>
         </form>
 
-        <section className="concept-board-panel concept-answer-panel" aria-label="쉬운 설명 답변">
+        <section className="concept-board-panel concept-answer-panel" aria-label="쉬운 설명 답변" hidden={stage !== 2}>
           {source === "fallback" ? (
             <p className="concept-source-note">AI 답변을 불러오지 못해 준비된 예시 설명을 보여드려요.</p>
           ) : null}
           <article className={`concept-main-card concept-answer-card ${loading ? "is-loading" : ""}`}>
-            {loading ? (
-              <div className="concept-answer-loading" aria-live="polite">
-                <ul className="concept-loading-stages">
-                  {LOADING_STAGES.map((stage, index) => (
-                    <li key={stage} className={index < loadingStage ? "is-done" : index === loadingStage ? "is-active" : ""}>
-                      {index < loadingStage ? (
-                        <CheckCircle2 size={15} />
-                      ) : index === loadingStage ? (
-                        <Loader2 className="animate-spin" size={15} />
-                      ) : (
-                        <Circle size={15} />
-                      )}
-                      <span>{stage}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
             {!board && !loading ? (
               <div className="concept-answer-empty">
                 <MessageCircleQuestion size={30} />
@@ -401,27 +315,6 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
               </div>
             </header>
             <MarkdownText className="concept-markdown-text concept-lead-text" text={board.lead} />
-
-            {sections.length > 1 ? (
-              <div className="concept-view-toggle" role="group" aria-label="답변 보기 방식">
-                <button
-                  className={!showSteps ? "is-on" : ""}
-                  type="button"
-                  onClick={() => setViewMode("all")}
-                >
-                  <LayoutGrid size={14} />
-                  한눈에
-                </button>
-                <button
-                  className={showSteps ? "is-on" : ""}
-                  type="button"
-                  onClick={() => setViewMode("steps")}
-                >
-                  <Layers size={14} />
-                  한 장씩
-                </button>
-              </div>
-            ) : null}
 
             {showSteps ? (
               <div className="concept-step-area">
@@ -449,25 +342,6 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
                     onAskFollowUp={askFollowUp}
                     onToggleCheck={toggleCheck}
                   />
-                </div>
-                <div className="concept-step-nav">
-                  <button className="button-secondary" disabled={safeStep === 0} type="button" onClick={() => setStepIndex(Math.max(safeStep - 1, 0))}>
-                    <ChevronLeft size={17} />
-                    이전
-                  </button>
-                  <button className="button-primary" type="button" onClick={() => setStepIndex(isLastStep ? 0 : safeStep + 1)}>
-                    {isLastStep ? (
-                      <>
-                        <RotateCcw size={16} />
-                        처음부터
-                      </>
-                    ) : (
-                      <>
-                        다음
-                        <ChevronRight size={17} />
-                      </>
-                    )}
-                  </button>
                 </div>
               </div>
             ) : (
@@ -509,6 +383,7 @@ export function ConceptExplainerWorkspace({ app, spec }: ConceptExplainerWorkspa
           ) : null}
         </section>
       </section>
+      </div>
     </main>
   );
 }
@@ -910,9 +785,7 @@ function computeFlowLayout(nodes: ConceptDiagramNode[], links: ConceptDiagramLin
     });
   });
 
-  const renderEdges: FlowEdge[] = edges.length
-    ? edges
-    : nodes.slice(0, -1).map((_, index) => ({ from: index, to: index + 1 }));
+  const renderEdges: FlowEdge[] = edges;
 
   return { placed, renderEdges, totalWidth, totalHeight, layerCount, hasRealEdges: edges.length > 0 };
 }
@@ -936,7 +809,7 @@ function FlowDiagram({ nodes, links }: { nodes: ConceptDiagramNode[]; links: Con
               <path d="M0 0L10 5L0 10Z" style={{ fill: "#6fae9f" }} />
             </marker>
           </defs>
-          {layout.renderEdges.map((edge, edgeIndex) => {
+          {layout.renderEdges.map((edge) => {
             const from = layout.placed[edge.from];
             const to = layout.placed[edge.to];
             const x1 = from.x + from.width;
@@ -944,9 +817,6 @@ function FlowDiagram({ nodes, links }: { nodes: ConceptDiagramNode[]; links: Con
             const x2 = to.x - 9;
             const y2 = to.y + to.height / 2;
             const bend = Math.max((x2 - x1) / 2, 16);
-            // Alternate label offsets so labels on converging edges don't sit
-            // on top of each other.
-            const labelOffset = edgeIndex % 2 === 0 ? -7 : 15;
             return (
               <g key={`${edge.from}-${edge.to}`}>
                 <path
@@ -954,11 +824,6 @@ function FlowDiagram({ nodes, links }: { nodes: ConceptDiagramNode[]; links: Con
                   d={`M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`}
                   markerEnd="url(#concept-arrow)"
                 />
-                {edge.label ? (
-                  <text className="concept-flow-edge-label" textAnchor="middle" x={(x1 + x2 + 9) / 2} y={(y1 + y2) / 2 + labelOffset}>
-                    {shortLabel(edge.label, 12)}
-                  </text>
-                ) : null}
               </g>
             );
           })}
@@ -985,7 +850,9 @@ function FlowDiagram({ nodes, links }: { nodes: ConceptDiagramNode[]; links: Con
           {rolesUsed.has("output") ? <span className="is-output">나오는 것</span> : null}
         </div>
       ) : null}
-      <DiagramNotes nodes={nodes} links={[]} />
+      <div className="concept-mobile-flow">{layout.renderEdges.length ? layout.renderEdges.map((edge) => <div className="concept-mobile-edge" key={`${edge.from}-${edge.to}`}><strong>{nodes[edge.from].label}</strong><span aria-hidden="true">→</span><strong>{nodes[edge.to].label}</strong>{edge.label && <p>{edge.label}</p>}</div>) : nodes.map((node) => <strong key={node.label}>{node.label}</strong>)}</div>
+      <div className="concept-flow-relations"><DiagramNotes nodes={[]} links={links} /></div>
+      {nodes.some((node) => node.description) && <details className="concept-diagram-details"><summary>그림 속 말 살펴보기</summary><DiagramNotes nodes={nodes} links={[]} /></details>}
     </div>
   );
 }
@@ -1252,30 +1119,6 @@ function renderInlineMarkdown(text: string): ReactNode[] {
   });
 }
 
-function buildConceptFallback(app: AppItem, spec: MvpSpec, values: typeof initialValues): ConceptOutput {
-  const base = buildLocalOutput(app, spec, values);
-  const question = values.topic.trim() || "궁금한 말";
-  const topic = extractQuestionTarget(question);
-  const level = values.level.trim() || "학생";
-  const context = cleanContext(values.notes) || "오늘 수업";
-  const sourceSentence = cleanContext(values.sourceSentence) || "";
-  const isDetailed = values.length === "자세히";
-  const fallback = buildFallbackAnswer(topic, context, sourceSentence, level, isDetailed);
-
-  return {
-    ...base,
-    title: fallback.title,
-    lead: fallback.lead,
-    emoji: fallback.emoji,
-    cards: fallback.cards,
-    answerMeta: fallback.answerMeta,
-    answerBlocks: fallback.answerBlocks,
-    notes: fallback.notes,
-    source: "fallback" as const,
-    updatedAt: new Date().toISOString(),
-  };
-}
-
 function normalizeAnswerBlocks(input: unknown, fallback: ConceptAnswerBlock[] = []) {
   if (!Array.isArray(input)) return fallback;
 
@@ -1414,228 +1257,8 @@ function stringifyAnswerBlock(block: ConceptAnswerBlock) {
   return lines.join("\n");
 }
 
-function buildFallbackAnswer(topic: string, context: string, sourceSentence: string, level: string, isDetailed: boolean) {
-  if (topic.includes("경도")) {
-    const meaning = "‘경도’는 본초자오선을 기준으로 어떤 장소가 동쪽이나 서쪽으로 얼마나 떨어져 있는지 나타내는 값이에요.";
-    const blocks: ConceptAnswerBlock[] = [
-      { type: "paragraph", title: "핵심 뜻", body: meaning },
-      {
-        type: "table",
-        title: "위도와 경도 비교",
-        rows: [
-          { label: "위도", value: "적도를 기준으로 북쪽·남쪽 위치를 나타냅니다." },
-          { label: "경도", value: "본초자오선을 기준으로 동쪽·서쪽 위치를 나타냅니다." },
-          { label: "지도에서 보기", value: "위도선은 가로 방향, 경도선은 세로 방향으로 생각하면 쉽습니다." },
-        ],
-      },
-      {
-        type: "diagram",
-        title: "위도와 경도 위치 보기",
-        diagramType: "grid",
-        nodes: [
-          { label: "경도", description: "동서 위치를 나타내는 값입니다." },
-          { label: "본초자오선", description: "경도 0도의 기준선입니다." },
-          { label: "위도와 차이", description: "위도는 남북 위치, 경도는 동서 위치를 나타냅니다." },
-        ],
-      },
-      {
-        type: "check",
-        title: "확인하기",
-        items: [
-          "경도는 동쪽·서쪽 위치를 나타낸다고 말할 수 있어요.",
-          "본초자오선이 경도의 기준선이라는 점을 기억할 수 있어요.",
-          "위도와 경도의 차이를 한 문장으로 설명할 수 있어요.",
-        ],
-      },
-      {
-        type: "question",
-        title: "이어서 물어보기",
-        items: ["시차는 왜 생기나요?", "우리나라의 경도는 몇 도인가요?"],
-      },
-    ];
-
-    if (isDetailed) {
-      blocks.splice(3, 0, {
-        type: "example",
-        title: "수업 문장에 넣어 보기",
-        body: sourceSentence
-          ? `문장 속 "${sourceSentence}"에서 경도는 위치를 더 정확히 나타내기 위해 쓰인 말이에요. 위도와 함께 보면 어느 장소가 지구 위 어디쯤 있는지 알 수 있습니다.`
-          : `${context}에서 경도는 지구 위 장소의 위치를 더 정확히 말할 때 쓰입니다.`,
-      });
-    }
-
-    return makeFallbackPayload(topic, sourceSentence, context, meaning, blocks, level, "🧭");
-  }
-
-  if (topic.includes("위도")) {
-    const meaning = "‘위도’는 적도를 기준으로 어떤 장소가 북쪽이나 남쪽으로 얼마나 떨어져 있는지 나타내는 값이에요.";
-    const blocks: ConceptAnswerBlock[] = [
-      { type: "paragraph", title: "핵심 뜻", body: meaning },
-      {
-        type: "table",
-        title: "위도와 경도 비교",
-        rows: [
-          { label: "위도", value: "적도를 기준으로 북쪽·남쪽 위치를 나타냅니다." },
-          { label: "경도", value: "본초자오선을 기준으로 동쪽·서쪽 위치를 나타냅니다." },
-          { label: "지도에서 보기", value: "위도선은 가로 방향, 경도선은 세로 방향으로 생각하면 쉽습니다." },
-        ],
-      },
-      {
-        type: "diagram",
-        title: "위도와 경도 위치 보기",
-        diagramType: "grid",
-        nodes: [
-          { label: "위도", description: "남북 위치를 나타내는 값입니다." },
-          { label: "적도", description: "위도 0도의 기준선입니다." },
-          { label: "경도와 차이", description: "경도는 동서 위치를 나타냅니다." },
-        ],
-      },
-      {
-        type: "check",
-        title: "확인하기",
-        items: [
-          "위도는 북쪽·남쪽 위치를 나타낸다고 말할 수 있어요.",
-          "적도가 위도의 기준선이라는 점을 기억할 수 있어요.",
-          "위도와 경도의 차이를 한 문장으로 설명할 수 있어요.",
-        ],
-      },
-      {
-        type: "question",
-        title: "이어서 물어보기",
-        items: ["적도 근처는 왜 더운가요?", "우리나라의 위도는 몇 도인가요?"],
-      },
-    ];
-
-    return makeFallbackPayload(topic, sourceSentence, context, meaning, blocks, level, "🌍");
-  }
-
-  if (topic.includes("증발")) {
-    const meaning = "‘증발’은 물 같은 액체가 기체가 되어 공기 중으로 퍼지는 현상이에요.";
-    const blocks: ConceptAnswerBlock[] = [
-      { type: "paragraph", title: "핵심 뜻", body: meaning },
-      {
-        type: "diagram",
-        title: "증발이 일어나는 흐름",
-        diagramType: "flow",
-        nodes: [
-          { label: "액체 물", description: "처음에는 눈에 보이는 물입니다.", role: "input" },
-          { label: "수증기", description: "기체 상태로 바뀝니다.", role: "process" },
-          { label: "공기 중", description: "주변 공기와 섞입니다.", role: "output" },
-        ],
-        links: [
-          { from: "액체 물", to: "수증기", label: "상태 변화" },
-          { from: "수증기", to: "공기 중", label: "퍼짐" },
-        ],
-      },
-      { type: "example", title: "생활 예시", body: "젖은 수건이 시간이 지나며 마르는 것은 물이 증발해서 공기 중으로 퍼지기 때문이에요." },
-      {
-        type: "check",
-        title: "확인하기",
-        items: [
-          "증발은 액체가 기체로 바뀌는 현상이라고 말할 수 있어요.",
-          "물이 사라진 것이 아니라 모습이 바뀐 것이라고 설명할 수 있어요.",
-          "젖은 수건이 마르는 까닭을 증발과 연결할 수 있어요.",
-        ],
-      },
-      {
-        type: "question",
-        title: "이어서 물어보기",
-        items: ["끓음과 증발은 뭐가 다른가요?", "추운 날에도 빨래가 마르나요?"],
-      },
-    ];
-
-    return makeFallbackPayload(topic, sourceSentence, context, meaning, blocks, level, "💧");
-  }
-
-  const meaning = `‘${topic}’은 ${context}에서 중요한 뜻을 가진 말이에요. 앞뒤 문장이나 수업 장면과 함께 보면 무엇을 가리키는지 더 쉽게 알 수 있어요.`;
-  return makeFallbackPayload(topic, sourceSentence, context, meaning, [
-    { type: "paragraph", title: "핵심 뜻", body: meaning },
-    {
-      type: "example",
-      title: "수업 문장에 넣어 보기",
-      body: sourceSentence
-        ? `문장 속 "${sourceSentence}"에서 ‘${topic}’이 무엇을 가리키는지 앞뒤 내용과 함께 살펴보면 좋아요.`
-        : `${context}에서 ‘${topic}’이 어떤 뜻으로 쓰였는지 한 문장으로 바꾸어 생각해요.`,
-    },
-    {
-      type: "check",
-      title: "확인하기",
-      items: [
-        `‘${topic}’의 뜻을 한 문장으로 말할 수 있어요.`,
-        `수업 문장 안에서 ‘${topic}’이 어떤 역할을 하는지 찾을 수 있어요.`,
-        "비슷한 말과 헷갈리는 점을 하나 말할 수 있어요.",
-      ],
-    },
-    {
-      type: "question",
-      title: "이어서 물어보기",
-      items: [
-        `‘${topic}’${subjectParticle(topic) === "은" ? "과" : "와"} 비슷한 말은 뭐가 있나요?`,
-        `‘${topic}’${subjectParticle(topic)} 어디에서 볼 수 있나요?`,
-      ],
-    },
-  ], level, "📖");
-}
-
-function makeFallbackPayload(
-  topic: string,
-  sourceSentence: string,
-  context: string,
-  lead: string,
-  answerBlocks: ConceptAnswerBlock[],
-  level: string,
-  emoji: string,
-) {
-  return {
-    title: buildSafeConceptTitle(topic),
-    lead,
-    emoji,
-    cards: answerBlocks.map((block) => ({ title: block.title, body: block.body || block.items?.join(" ") || block.rows?.map((row) => `${row.label}: ${row.value}`).join(" ") || "" })),
-    answerMeta: {
-      term: topic,
-      sourceSentence,
-      lessonContext: context,
-      studentIntent: `${level} 수준에서 이해하기`,
-    },
-    answerBlocks,
-    notes: [],
-  };
-}
-
-function buildSafeConceptTitle(topic: string) {
-  const quoted = `‘${topic}’`;
-  if (topic.includes("경도")) return `${quoted}는 동서 위치를 나타내는 값이에요`;
-  if (topic.includes("위도")) return `${quoted}는 남북 위치를 나타내는 값이에요`;
-  if (topic.includes("증발")) return `${quoted}은 액체가 기체로 바뀌는 현상이에요`;
-  return `${quoted}${subjectParticle(topic)} 수업 문맥 안에서 뜻을 잡으면 쉬워요`;
-}
-
-function subjectParticle(word: string) {
-  const char = word.charCodeAt(word.length - 1);
-  if (char < 0xac00 || char > 0xd7a3) return "은";
-  return (char - 0xac00) % 28 === 0 ? "는" : "은";
-}
-
-function extractQuestionTarget(question: string) {
-  const trimmed = question
-    .replace(/[“”"']/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return (
-    trimmed
-      .replace(/^(질문|궁금한 것|궁금한 말)\s*[:：]\s*/i, "")
-      .replace(/(이|가|은|는|을|를)?\s*(뭐|무엇|뭔가|무슨 뜻)(예요|이에요|인가요|일까요|야|죠)?\??$/i, "")
-      .replace(/\??$/, "")
-      .trim() || trimmed || "궁금한 말"
-  );
-}
-
-function cleanContext(notes: string) {
-  return notes
-    .trim()
-    .replace(/[.!?。]+$/, "")
-    .replace(/입니다$/, "")
-    .replace(/이에요$/, "")
-    .replace(/예요$/, "");
+function toConceptOutput(data: AiResult): ConceptOutput | undefined {
+  const blocks = normalizeAnswerBlocks(data.answerBlocks);
+  if (typeof data.title !== "string" || typeof data.lead !== "string" || !blocks.length) return undefined;
+  return { title: data.title, lead: data.lead, cards: [], notes: Array.isArray(data.notes) ? data.notes.filter((item): item is string => typeof item === "string") : [], answerMeta: normalizeAnswerMeta(data.answerMeta), answerBlocks: blocks, emoji: normalizeEmoji(data.emoji), source: "live", updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString() };
 }

@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { InventionLabResult } from "@/components/apps/invention/InventionLabResult";
 import { PicturebookSceneResult } from "@/components/apps/picturebook/PicturebookSceneResult";
 import { AccessGate } from "@/components/layout/AccessGate";
-import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { getAppBySlug } from "@/data/apps";
 import { getMvpSpec } from "@/data/mvp";
@@ -57,7 +56,6 @@ export default async function AppResultPage({ params }: AppResultPageProps) {
       ) : (
         <PicturebookSceneResult app={app} spec={spec} />
       )}
-      <Footer />
     </AccessGate>
   );
 }

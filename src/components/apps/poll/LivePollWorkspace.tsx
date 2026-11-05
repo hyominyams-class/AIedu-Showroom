@@ -1,7 +1,7 @@
 "use client";
 
-import { BarChart3, Check, Lock, RotateCcw, Users, Vote } from "lucide-react";
-import Link from "next/link";
+import { BarChart3, Check, Lock, RotateCcw, Users } from "lucide-react";
+import { WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
 import { useEffect, useMemo, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
@@ -13,7 +13,7 @@ import {
   newRowId,
   nowIso,
   saveStoredState,
-  SheetDock,
+  FakeSheetPanel,
   SheetTabData,
   useSheetDock,
   useSheetWriter,
@@ -98,7 +98,7 @@ function buildSeedState(base: "static" | "fresh"): PollState {
       responses.push({
         id: `seed-${questionId}-${index}`,
         at: base === "static" ? `seed-${questionId}-${index}` : makeAt(index),
-        participant: `학생 ${index + 1}`,
+        participant: `예시 학생 ${index + 1}`,
         questionId,
         choice,
       });
@@ -118,6 +118,7 @@ function buildSeedState(base: "static" | "fresh"): PollState {
 const STATIC_SEED = buildSeedState("static");
 
 export function LivePollWorkspace({ app }: PollWorkspaceProps) {
+  const [stage, setStage] = useState(0);
   const [state, setState] = useState<PollState>(STATIC_SEED);
   const [activeQuestionId, setActiveQuestionId] = useState(QUESTIONS[0].id);
   const [changingVote, setChangingVote] = useState(false);
@@ -162,49 +163,14 @@ export function LivePollWorkspace({ app }: PollWorkspaceProps) {
   const totalVotes = activeResponses.length;
   const maxCount = Math.max(...counts, 0);
 
-  // 진행 중인 질문에는 다른 학생들의 표가 천천히 들어온다.
-  useEffect(() => {
-    if (!hydrated || questionClosed) return;
-    const simCount = activeResponses.filter((response) => response.participant.startsWith("학생")).length;
-    if (activeResponses.length >= activeQuestion.cap) return;
-
-    const timer = window.setTimeout(() => {
-      const weights = activeQuestion.options.map((_, optionIndex) => {
-        const count = activeResponses.filter((response) => response.choice === optionIndex).length;
-        return count + 1;
-      });
-      const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-      let roll = Math.random() * totalWeight;
-      let choice = 0;
-      for (let index = 0; index < weights.length; index += 1) {
-        roll -= weights[index];
-        if (roll <= 0) {
-          choice = index;
-          break;
-        }
-      }
-      const response: PollResponse = {
-        id: newRowId(`sim-${activeQuestion.id}`),
-        at: nowIso(),
-        participant: `학생 ${simCount + 1}`,
-        questionId: activeQuestion.id,
-        choice,
-      };
-      write(
-        () => {
-          setState((current) => {
-            if (current.closed[activeQuestion.id]) return current;
-            return { ...current, responses: [...current.responses, response] };
-          });
-          dock.notifyRowsWritten(1);
-        },
-        { flashIds: [response.id], delay: 300 },
-      );
-    }, 2600 + Math.random() * 2400);
-
-    return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, questionClosed, activeQuestion.id, activeResponses.length]);
+  function addExampleVote() {
+    if (questionClosed || activeResponses.length >= activeQuestion.cap) return;
+    const response: PollResponse = { id: newRowId(`example-${activeQuestion.id}`), at: nowIso(), participant: `예시 학생 ${activeResponses.filter((item) => item.participant !== "나").length + 1}`, questionId: activeQuestion.id, choice: Math.floor(Math.random() * activeQuestion.options.length) };
+    write(() => {
+      setState((current) => current.closed[activeQuestion.id] ? current : { ...current, responses: [...current.responses, response] });
+      dock.notifyRowsWritten(1);
+    }, { flashIds: [response.id] });
+  }
 
   function castVote(choice: number) {
     if (questionClosed) return;
@@ -225,7 +191,7 @@ export function LivePollWorkspace({ app }: PollWorkspaceProps) {
             ),
           }));
         },
-        { flashIds: [existingMine.id], delay: 420 },
+        { flashIds: [existingMine.id] },
       );
       return;
     }
@@ -246,7 +212,7 @@ export function LivePollWorkspace({ app }: PollWorkspaceProps) {
         }));
         dock.notifyRowsWritten(1);
       },
-      { flashIds: [response.id], delay: 420 },
+      { flashIds: [response.id] },
     );
   }
 
@@ -341,28 +307,11 @@ export function LivePollWorkspace({ app }: PollWorkspaceProps) {
   const showOptions = !questionClosed && (myVote === undefined || changingVote);
 
   return (
-    <main className="mvp-page pollapp-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <Vote size={17} />
-              실시간 수업 보드
-            </span>
-            <p>{app.category} · 응답 시트 연동</p>
-          </div>
-          <strong>{app.shortDescription}</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-        </div>
-      </section>
-
+    <main className="workspace-page pollapp-page">
+      <WorkspaceHeader title={app.title} navigation="tabs" steps={["질문 선택", "투표·결과", "응답 장부"]} current={stage} onStep={setStage} onPrevious={stage > 0 ? () => setStage(stage - 1) : undefined} onNext={stage < 2 ? () => setStage(stage + 1) : undefined} actions={<span className="workspace-local-note">이 기기에서 체험</span>} />
+      <div className="workspace-body">
       <section className="pollapp-layout">
-        <aside className="pollapp-side-panel">
+        <aside hidden={stage !== 0} className="pollapp-side-panel">
           <div className="mvp-panel-heading">
             <strong>투표 질문</strong>
             <button
@@ -370,7 +319,7 @@ export function LivePollWorkspace({ app }: PollWorkspaceProps) {
               className="pollapp-sheet-link"
               onClick={() => {
                 dock.showTab("questions");
-                dock.onOpenChange(true);
+                setStage(2);
               }}
             >
               시트에서 관리
@@ -388,6 +337,7 @@ export function LivePollWorkspace({ app }: PollWorkspaceProps) {
                     className={`pollapp-question-item ${question.id === activeQuestion.id ? "is-active" : ""}`}
                     onClick={() => {
                       setActiveQuestionId(question.id);
+                      setStage(1);
                       setChangingVote(false);
                     }}
                   >
@@ -401,7 +351,7 @@ export function LivePollWorkspace({ app }: PollWorkspaceProps) {
                       ) : (
                         <em className="is-live">진행 중</em>
                       )}
-                      {questionResponses.length}명 참여
+                      {questionResponses.length}표
                     </span>
                   </button>
                 </li>
@@ -415,7 +365,7 @@ export function LivePollWorkspace({ app }: PollWorkspaceProps) {
           </button>
         </aside>
 
-        <section className="pollapp-board-panel" aria-label="투표 현황">
+        <section hidden={stage !== 1} className="pollapp-board-panel" aria-label="투표 현황">
           <div className="pollapp-board-head">
             <div className="pollapp-board-title">
               {questionClosed ? (
@@ -426,17 +376,18 @@ export function LivePollWorkspace({ app }: PollWorkspaceProps) {
               ) : (
                 <span className="pollapp-state-chip is-live">
                   <i aria-hidden="true" />
-                  실시간 집계
+                  투표 집계
                 </span>
               )}
               <h2>{activeQuestion.title}</h2>
             </div>
             <span className="pollapp-total">
               <Users size={15} />
-              {totalVotes}명 참여
+              {totalVotes}표
             </span>
           </div>
 
+          <button className="button-secondary pollapp-example-button" type="button" onClick={addExampleVote} disabled={questionClosed || activeResponses.length >= activeQuestion.cap}>예시 응답 1표 추가</button>
           {showOptions ? (
             <div className="pollapp-options" role="group" aria-label="투표 보기">
               {activeQuestion.options.map((option, optionIndex) => (
@@ -483,7 +434,7 @@ export function LivePollWorkspace({ app }: PollWorkspaceProps) {
                     <div className="pollapp-bar-track">
                       <span
                         className="pollapp-bar-fill"
-                        style={{ width: totalVotes === 0 ? "0%" : `${Math.max(4, percent)}%` }}
+                        style={{ width: `${percent}%` }}
                       />
                     </div>
                     <span className="pollapp-bar-value">
@@ -502,19 +453,16 @@ export function LivePollWorkspace({ app }: PollWorkspaceProps) {
         </section>
       </section>
 
-      <div className="pollapp-dock-slot">
-        <SheetDock
+      <div hidden={stage !== 2} className="workspace-records-panel">
+        <FakeSheetPanel
           fileName={SHEET_FILE_NAME}
           tabs={[responsesTab, questionsTab, tallyTab]}
           activeTabId={dock.activeTabId}
           onSelectTab={dock.showTab}
-          open={dock.open}
-          onOpenChange={dock.onOpenChange}
           writing={writing}
           flashRowIds={flashRowIds}
-          newRowCount={dock.newRowCount}
-          hint="응답 · 질문 · 집계"
         />
+      </div>
       </div>
     </main>
   );

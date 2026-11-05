@@ -8,6 +8,7 @@ import "@fontsource/pretendard/900.css";
 import "@fontsource/noto-serif-kr/700.css";
 import "@fontsource/noto-serif-kr/900.css";
 import "./globals.css";
+import "./workspaces.css";
 
 export const metadata: Metadata = {
   title: "AI EDU Showroom",

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, Plus, RotateCcw, Shuffle, Sparkles, Star, Timer, Trophy } from "lucide-react";
 import { AppItem } from "@/data/apps";
@@ -45,7 +45,7 @@ const previewMs = 5200;
 const totalPairs = additionPairs.length;
 const perfectTurns = totalPairs + 2;
 
-export function AdditionCardMatchWorkspace({ app, spec }: AdditionCardMatchWorkspaceProps) {
+export function AdditionCardMatchWorkspace({ app }: AdditionCardMatchWorkspaceProps) {
   const [cards, setCards] = useState<GameCard[]>(() => createCards());
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [mode, setMode] = useState<GameMode>("ready");
@@ -255,26 +255,8 @@ export function AdditionCardMatchWorkspace({ app, spec }: AdditionCardMatchWorks
   }
 
   return (
-    <main className="addition-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero addition-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <Plus size={17} />
-              덧셈 짝 맞추기
-            </span>
-            <p>{app.category} · {spec.workLabel}</p>
-          </div>
-          <strong>{app.shortDescription}</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-        </div>
-      </section>
-
+    <main className="workspace-page game-workspace addition-page">
+      <WorkspaceHeader title={app.title} steps={["준비", "짝 찾기", "결과"]} current={mode === "ready" ? 0 : mode === "complete" ? 2 : 1} />
       <section className="addition-stage">
         <div className="addition-hud">
           <div className="addition-hud-stats">

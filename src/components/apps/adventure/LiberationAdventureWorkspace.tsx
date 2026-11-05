@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, RotateCcw, Volume2, VolumeX, Feather } from "lucide-react";
 import { AppItem } from "@/data/apps";
@@ -234,7 +234,7 @@ function renderText(text: string, inventory: string[]) {
   return text.replace(/\{item\}/g, primaryItem(inventory));
 }
 
-export function LiberationAdventureWorkspace({ app, spec }: LiberationAdventureWorkspaceProps) {
+export function LiberationAdventureWorkspace({ app }: LiberationAdventureWorkspaceProps) {
   const [sceneId, setSceneId] = useState("intro");
   const [resolve, setResolve] = useState(0);
   const [suspicion, setSuspicion] = useState(0);
@@ -505,8 +505,8 @@ export function LiberationAdventureWorkspace({ app, spec }: LiberationAdventureW
 
   if (!started) {
     return (
-      <main className="adv-page">
-        <AdventureHero app={app} spec={spec} muted={muted} onToggleMute={toggleMute} />
+      <main className="workspace-page game-workspace adv-page">
+        <AdventureHero app={app} stage={!started ? 0 : ending ? 2 : 1} muted={muted} onToggleMute={toggleMute} />
         <section className="adv-stage">
           <article className="adv-parchment adv-parchment--cover">
             <div className="adv-cover-mark" aria-hidden="true">
@@ -528,8 +528,8 @@ export function LiberationAdventureWorkspace({ app, spec }: LiberationAdventureW
   }
 
   return (
-    <main className="adv-page">
-      <AdventureHero app={app} spec={spec} muted={muted} onToggleMute={toggleMute} />
+    <main className="workspace-page game-workspace adv-page">
+      <AdventureHero app={app} stage={!started ? 0 : ending ? 2 : 1} muted={muted} onToggleMute={toggleMute} />
 
       <section className="adv-stage">
         <article className={`adv-parchment ${endInfo ? endInfo.tone : ""}`}>
@@ -616,43 +616,8 @@ export function LiberationAdventureWorkspace({ app, spec }: LiberationAdventureW
   );
 }
 
-function AdventureHero({
-  app,
-  spec,
-  muted,
-  onToggleMute,
-}: {
-  app: AppItem;
-  spec: MvpSpec;
-  muted: boolean;
-  onToggleMute: () => void;
-}) {
-  return (
-    <section className="mvp-topbar mvp-showroom-hero mvp-work-hero adv-hero">
-      <div className="mvp-hero-copy">
-        <div className="mvp-hero-title-row">
-          <h1>{app.title}</h1>
-          <span className="mvp-surface-icon">
-            <BookOpen size={16} />
-            역사 어드벤처
-          </span>
-          <p>
-            {app.category} · {spec.workLabel}
-          </p>
-        </div>
-        <strong>1919년 경성, 선택에 따라 이야기와 결말이 달라지는 일제강점기 텍스트 어드벤처입니다.</strong>
-      </div>
-      <div className="mvp-hero-actions">
-        <button className="button-secondary adv-mute" type="button" onClick={onToggleMute} aria-pressed={muted}>
-          {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          {muted ? "소리 켜기" : "소리"}
-        </button>
-        <Link className="button-secondary" href="/library">
-          앱 선택
-        </Link>
-      </div>
-    </section>
-  );
+function AdventureHero({ app, stage, muted, onToggleMute }: { app: AppItem; stage: number; muted: boolean; onToggleMute: () => void }) {
+  return <WorkspaceHeader title={app.title} steps={["첫 장", "이야기", "결말"]} current={stage} actions={<button className="button-secondary" type="button" onClick={onToggleMute} aria-pressed={muted}>{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}{muted ? "소리 켜기" : "소리 끄기"}</button>} />;
 }
 
 declare global {

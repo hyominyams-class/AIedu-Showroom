@@ -4,7 +4,8 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Filter, Layers3, Search, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
+import { PageControls } from "@/components/mvp/PageControls";
 import { AppCard } from "@/components/library/AppCard";
 import { apps, categories, Difficulty, AppItem } from "@/data/apps";
 import { getMvpSpec } from "@/data/mvp";
@@ -17,29 +18,37 @@ const lightboxDifficultyClass = {
   상: "is-high",
 } as const;
 
+function subscribeWidth(callback: () => void) {
+  window.addEventListener("resize", callback);
+  return () => window.removeEventListener("resize", callback);
+}
+
 export function LibraryClient() {
+  const [page, setPage] = useState(0);
+  const pageSize = useSyncExternalStore(subscribeWidth, () => window.innerWidth < 640 ? 2 : window.innerWidth < 1024 ? 4 : 6, () => 6);
   const [category, setCategory] = useState("전체");
   const [difficulty, setDifficulty] = useState<Difficulty | "전체">("전체");
   const [query, setQuery] = useState("");
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
 
   const filteredApps = useMemo(() => {
-    const keyword = query.trim().toLowerCase();
+    const normalize = (value: string) => value.toLowerCase().replace(/[\s·_-]+/g, "");
+    const keyword = normalize(query.trim());
     return apps.filter((app) => {
       const categoryMatch = category === "전체" || app.category === category;
       const difficultyMatch = difficulty === "전체" || app.difficulty === difficulty;
       const keywordMatch =
         !keyword ||
-        [app.title, app.shortDescription, app.category, app.tags.join(" "), app.buildBasis]
-          .join(" ")
-          .toLowerCase()
+        normalize([app.title, app.slug, app.shortDescription, app.category, ...app.tags, ...app.keywords, app.buildBasis, app.lessonUse].join(" "))
           .includes(keyword);
 
       return categoryMatch && difficultyMatch && keywordMatch;
     });
   }, [category, difficulty, query]);
 
-  const visibleApps = filteredApps;
+  const pageCount = Math.max(1, Math.ceil(filteredApps.length / pageSize));
+  const safePage = Math.min(page, pageCount - 1);
+  const visibleApps = filteredApps.slice(safePage * pageSize, (safePage + 1) * pageSize);
   const selectedApp = selectedSlug ? filteredApps.find((app) => app.slug === selectedSlug) ?? apps.find((app) => app.slug === selectedSlug) : undefined;
 
   function selectApp(app: AppItem) {
@@ -55,7 +64,7 @@ export function LibraryClient() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--surface)]">
+    <main className="library-page min-h-screen bg-[var(--surface)]">
       <section className="library-hero">
         <h1 className="sr-only">교육앱 아이디어 라이브러리</h1>
         <Image
@@ -74,9 +83,10 @@ export function LibraryClient() {
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={18} />
             <input
               className="search-input"
-              placeholder="앱 이름, 태그, 기술 검색"
+              aria-label="앱 검색"
+              placeholder="앱 이름, 핵심 키워드 검색"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => { setQuery(event.target.value); setPage(0); }}
             />
           </div>
 
@@ -87,7 +97,8 @@ export function LibraryClient() {
                 className={`segmented-button ${difficulty === item ? "is-active" : ""}`}
                 key={item}
                 type="button"
-                onClick={() => setDifficulty(item)}
+                aria-pressed={difficulty === item}
+                onClick={() => { setDifficulty(item); setPage(0); }}
               >
                 {item}
               </button>
@@ -99,7 +110,8 @@ export function LibraryClient() {
           <button
             className={`category-pill ${category === "전체" ? "is-active" : ""}`}
             type="button"
-            onClick={() => setCategory("전체")}
+            aria-pressed={category === "전체"}
+            onClick={() => { setCategory("전체"); setPage(0); }}
           >
             <Layers3 size={16} />
             전체
@@ -109,7 +121,8 @@ export function LibraryClient() {
               className={`category-pill ${category === item ? "is-active" : ""}`}
               key={item}
               type="button"
-              onClick={() => setCategory(item)}
+              aria-pressed={category === item}
+              onClick={() => { setCategory(item); setPage(0); }}
             >
               {item}
             </button>
@@ -117,13 +130,15 @@ export function LibraryClient() {
         </div>
 
         <div className="mt-7 flex items-center justify-between gap-4">
-          <p className="text-sm font-medium text-[var(--muted)]">
+          <p className="shrink-0 whitespace-nowrap text-sm font-medium text-[var(--muted)]" role="status" aria-live="polite">
             {filteredApps.length}개 앱
           </p>
+          <PageControls page={safePage} total={pageCount} onPage={setPage} label="앱 목록 페이지" />
           <button
             className="button-secondary"
             type="button"
             onClick={() => {
+              setPage(0);
               setCategory("전체");
               setDifficulty("전체");
               setQuery("");
@@ -198,7 +213,7 @@ function AppLightbox({ app, onClose, onPrevious, onNext }: AppLightboxProps) {
                 alt={`${app.title} 미리보기 ${imageIndex + 1}`}
                 fill
                 sizes="(min-width: 1024px) 52vw, 100vw"
-                className="object-cover"
+                className={app.externalUrl ? "object-contain" : "object-cover"}
                 preload
               />
               {hasGallery ? (
@@ -251,7 +266,7 @@ function AppLightbox({ app, onClose, onPrevious, onNext }: AppLightboxProps) {
               <dl className="lightbox-detail-list">
                 <div>
                   <dt>수업 장면</dt>
-                  <dd>{spec?.promise ?? app.shortDescription}</dd>
+                  <dd>{spec?.promise ?? app.lessonUse}</dd>
                 </div>
                 <div>
                   <dt>핵심 키워드</dt>
@@ -277,8 +292,8 @@ function AppLightbox({ app, onClose, onPrevious, onNext }: AppLightboxProps) {
                     점검 중
                   </span>
                 ) : (
-                  <Link className="button-primary showroom-experience-button" href={experienceHref} target={app.externalUrl ? "_blank" : undefined}>
-                    앱 체험하기
+                  <Link className="button-primary showroom-experience-button" href={experienceHref} target={app.externalUrl ? "_blank" : undefined} rel={app.externalUrl ? "noopener noreferrer" : undefined}>
+                    {app.externalUrl ? app.actionLabel : "앱 체험하기"}
                   </Link>
                 )}
                 <button className="button-secondary lightbox-next-app" type="button" onClick={onNext}>

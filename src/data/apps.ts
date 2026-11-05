@@ -1,3 +1,5 @@
+import { publishedApps } from "./published-apps";
+
 export type Difficulty = "하" | "중" | "상";
 
 export type AppStatus = "live" | "maintenance";
@@ -751,7 +753,7 @@ const allApps: AppItem[] = [
     shortDescription:
       "수업 주제만 넣으면 바로 인쇄해 나눠줄 학습지를 만듭니다.",
     longDescription:
-      "수업 주제와 학년, 학습 유형을 넣으면 학습 목표부터 번호 문항, 정답과 해설까지 갖춘 한 장짜리 학습지를 만듭니다. 빈칸, 단답형, 선택형, 서술형 문항이 배점과 함께 들어가고 바로 인쇄할 수 있습니다.",
+      "수업 주제와 학년, 학습 유형을 넣으면 학습 목표부터 번호 문항, 정답과 해설까지 갖춘 수업용 학습지를 만듭니다. 빈칸, 단답형, 선택형, 서술형 문항이 배점과 함께 들어가고 바로 인쇄할 수 있습니다.",
     thumbnail: "/visuals/generated-thumbnails/ai-question-helper.png",
     previewImages: [
       "/visuals/generated-thumbnails/ai-question-helper.png",
@@ -800,7 +802,7 @@ const allApps: AppItem[] = [
     mockResult: {
       title: "수업 학습지",
       summary:
-        "학습 목표와 번호 문항, 정답·해설이 한 장에 담긴 학습지입니다.",
+        "학습 목표와 번호 문항, 정답·해설이 함께 담긴 학습지입니다.",
       highlights: ["학습 목표", "유형별 문항", "정답·해설"],
       cards: [
         {
@@ -1084,7 +1086,7 @@ const allApps: AppItem[] = [
     shortDescription:
       "학생들이 투표할 때마다 응답 시트에 쌓이고 막대 그래프가 실시간으로 올라갑니다.",
     longDescription:
-      "질문 시트에 적어 둔 투표를 골라 한 표를 던지면 응답 시트에 한 줄씩 쌓이고 집계 그래프가 바로 움직입니다. 다른 학생들의 표가 들어오는 동안 그래프가 실시간으로 갱신되고, 마감 체크를 켜면 투표가 닫히며 결과가 고정됩니다.",
+      "질문 시트에 적어 둔 투표를 골라 한 표를 던지면 응답 시트에 한 줄씩 쌓이고 집계 그래프가 바로 움직입니다. 이 기기에서 투표와 선택 변경을 체험하고, 마감 체크를 켜면 투표가 닫히며 결과가 고정됩니다.",
     thumbnail: "/visuals/generated-thumbnails/live-class-poll.png",
     previewImages: [
       "/visuals/generated-thumbnails/live-class-poll.png",
@@ -1240,11 +1242,11 @@ const allApps: AppItem[] = [
     shortDescription:
       "문제를 풀고 학급 코인을 얻어 투자와 저축을 운영하는 학급 게임 앱입니다.",
     longDescription:
-      "학생은 문제를 풀어 학급 코인을 모으고 저축, 투자, 소비 선택을 합니다. 교사는 문제, 보상, 이벤트를 조정해 학급 활동과 경제 습관을 함께 운영합니다. 교사용 ID: teacher_example, 학생용 ID: aiedap_example1 ~ aiedap_example40, 비밀번호: a123456789",
-    thumbnail: "/visuals/generated-thumbnails/class-game-management.png",
+      "문제를 풀어 학급 코인을 모으고 저축·투자·소비를 경험하세요. 체험계정 로그인 버튼으로 학생 역할에 바로 참여할 수 있습니다. 체험 학급에서 문제 풀이와 보상, 경제 활동의 흐름을 살펴보세요.",
+    thumbnail: "/visuals/published-apps/class-game-management.webp",
     previewImages: [
-      "/visuals/generated-thumbnails/class-game-management.png",
-      "/visuals/landing-previews/class-game-management.png",
+      "/visuals/published-apps/class-game-management.webp",
+      "/visuals/published-apps/class-game-login.webp",
     ],
     tags: ["학급 코인", "문제 풀이", "투자 저축"],
     keywords: ["학급 경제 게임", "문제풀이 보상", "코인·투자·저축", "보상 대시보드"],
@@ -1253,9 +1255,9 @@ const allApps: AppItem[] = [
     buildBasis: "별도 웹앱 링크",
     lessonUse: "학급 보상, 경제 습관, 문제 풀이",
     demoType: "외부 링크",
-    route: "https://class-game-dun.vercel.app/",
-    externalUrl: "https://class-game-dun.vercel.app/",
-    actionLabel: "class-game 열기",
+    route: "https://class-game-dun.vercel.app/login",
+    externalUrl: "https://class-game-dun.vercel.app/login",
+    actionLabel: "학생 체험하러 가기",
     fields: [],
     loadingMessages: [],
     mockResult: {
@@ -1327,98 +1329,6 @@ const allApps: AppItem[] = [
     },
   },
   {
-    slug: "digital-reading-passport",
-    title: "디지털 독서여권",
-    category: "독서교육",
-    shortDescription:
-      "세계 여러 나라 그림책을 읽고 질문을 만들어 나만의 그림책까지 완성하는 독서 수업 앱입니다.",
-    longDescription:
-      "학생이 여러 나라의 그림책을 읽고 감정 스티커와 한 줄 감상을 남깁니다. 이어서 책 속 나라의 문화를 영상과 사진으로 탐색하고, 궁금한 점을 질문으로 만들어 세계를 넓혀 갑니다. 활동을 마칠 때마다 여권에 도장이 찍히고, 마지막에는 자기 이야기를 그림책으로 창작합니다. 학생 계정은 교사가 관리하고 새 작품은 비공개로 시작합니다.",
-    thumbnail: "/visuals/generated-thumbnails/digital-reading-passport.png",
-    previewImages: [
-      "/visuals/generated-thumbnails/digital-reading-passport.png",
-      "/visuals/landing-previews/digital-reading-passport.png",
-    ],
-    tags: ["세계시민교육", "그림책 읽기", "그림책 창작"],
-    keywords: ["세계 그림책 읽기", "감정 표현과 한 줄 감상", "질문 만들기", "나만의 그림책 창작"],
-    targetGrade: "초5-6",
-    difficulty: "상",
-    buildBasis: "별도 웹앱 링크",
-    lessonUse: "세계시민교육 독서 활동과 창작 수업",
-    demoType: "외부 링크",
-    route: "https://reading-passport-xga6.vercel.app/",
-    externalUrl: "https://reading-passport-xga6.vercel.app/",
-    actionLabel: "독서여권 열기",
-    fields: [],
-    loadingMessages: [],
-    mockResult: {
-      title: "나의 독서 여권",
-      summary:
-        "읽기, 탐색, 질문, 창작 네 활동을 마치면 도장이 모여 한 권의 독서 여권이 됩니다.",
-      highlights: ["그림책 읽기", "질문 만들기", "그림책 창작"],
-      cards: [
-        {
-          title: "읽기",
-          body: "여러 나라 그림책을 읽고 감정과 감상을 남깁니다.",
-        },
-        {
-          title: "탐색",
-          body: "책 속 나라의 문화를 영상과 사진으로 살펴봅니다.",
-        },
-        {
-          title: "창작",
-          body: "자기 이야기를 한 권의 그림책으로 만듭니다.",
-        },
-      ],
-    },
-  },
-  {
-    slug: "national-heritage-map",
-    title: "국가유산 지도",
-    category: "역사",
-    shortDescription:
-      "전남·광주 국가유산을 지도에서 찾아보고 답사 기록을 우리 반 지도에 남기는 앱입니다.",
-    longDescription:
-      "국가유산 오픈API 정보를 지도와 목록으로 함께 봅니다. 시대와 지역, 유형으로 걸러 찾고 위치, 설명, 사진, 로드뷰를 한 화면에서 확인합니다. 학생이 남긴 한줄평과 장소 기록은 교사가 확인한 뒤 우리 반 지도에 올라가고, 가 볼 곳을 담아 두면 날짜별 답사 코스와 이동 거리까지 만들어집니다.",
-    thumbnail: "/visuals/generated-thumbnails/national-heritage-map.png",
-    previewImages: [
-      "/visuals/generated-thumbnails/national-heritage-map.png",
-      "/visuals/landing-previews/national-heritage-map.png",
-    ],
-    tags: ["국가유산", "전남·광주", "답사 기록"],
-    keywords: ["국가유산 오픈API", "지도·로드뷰 탐색", "학생 한줄평", "날짜별 답사 코스"],
-    targetGrade: "초4-중2",
-    difficulty: "상",
-    buildBasis: "별도 웹앱 링크",
-    lessonUse: "지역 국가유산 탐구와 현장 답사",
-    demoType: "외부 링크",
-    route: "https://history-map-chi.vercel.app/",
-    externalUrl: "https://history-map-chi.vercel.app/",
-    actionLabel: "국가유산 지도 열기",
-    fields: [],
-    loadingMessages: [],
-    mockResult: {
-      title: "우리 반 국가유산 지도",
-      summary:
-        "학생이 찾은 유산과 한줄평이 쌓여 우리 지역의 답사 기록이 됩니다.",
-      highlights: ["지도 탐색", "한줄평", "답사 코스"],
-      cards: [
-        {
-          title: "탐색",
-          body: "시대와 지역, 유형으로 걸러 지도와 목록을 함께 봅니다.",
-        },
-        {
-          title: "기록",
-          body: "학생이 올린 장소와 한줄평을 교사가 확인해 지도에 남깁니다.",
-        },
-        {
-          title: "답사",
-          body: "가 볼 곳을 담아 날짜별 코스와 이동 거리를 확인합니다.",
-        },
-      ],
-    },
-  },
-  {
     slug: "ml-microbit-studio",
     title: "마이크로비트 머신러닝",
     category: "머신러닝",
@@ -1466,7 +1376,7 @@ const allApps: AppItem[] = [
   },
 ];
 
-export const apps: AppItem[] = allApps;
+export const apps: AppItem[] = [...publishedApps, ...allApps];
 
 export const difficultyLabels: Record<Difficulty, string> = {
   하: "바로 실행형",
@@ -1602,7 +1512,7 @@ const demoExamples: Record<string, DemoExample> = {
       notes: "증발과 응결을 생활 예시로 이해하기",
     },
     resultTitle: "물의 순환 학습지",
-    resultLead: "학습 목표와 번호 문항, 정답·해설이 한 장의 학습지로 이어집니다.",
+    resultLead: "학습 목표와 번호 문항, 정답·해설을 갖춘 학습지입니다.",
     artifactLabel: "학습지",
     artifactTitle: "물의 순환 학습지",
     artifactSubtitle: "초등 5학년 · 총 100점",
@@ -1619,8 +1529,8 @@ const demoExamples: Record<string, DemoExample> = {
     },
     fileName: "student-smart-planter-sketch.jpg",
     resultTitle: "발명품 포스터와 실사 이미지",
-    resultLead: "학생 스케치가 발표 포스터 1장과 실사 사용 예시 2장으로 확장됩니다.",
-    artifactLabel: "이미지 3장",
+    resultLead: "학생 스케치가 선택한 표현의 발명 이미지 한 장으로 이어집니다.",
+    artifactLabel: "이미지 한 장",
     artifactTitle: "자동 급수 화분",
     artifactSubtitle: "발명품 포스터 · 실사 사용 예시",
     artifactNotes: ["포스터", "교실 사용 장면", "집 베란다 사용 장면"],

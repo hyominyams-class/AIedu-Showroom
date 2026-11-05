@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, Clock3, Megaphone, Pause, Play, Plus, RotateCcw, Shuffle, Trash2 } from "lucide-react";
-import Link from "next/link";
+import { WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
@@ -27,7 +27,8 @@ const presetTimers: ClassTimer[] = [
 
 const STORAGE_KEY = "showroom:class-timer:timers";
 
-export function TimerDashboardWorkspace({ app, spec }: TimerDashboardWorkspaceProps) {
+export function TimerDashboardWorkspace({ app }: TimerDashboardWorkspaceProps) {
+  const [stage, setStage] = useState(0);
   const [timers, setTimers] = useState<ClassTimer[]>(presetTimers);
   const [activeId, setActiveId] = useState(presetTimers[1].id);
   const [timerName, setTimerName] = useState("낱말 카드 만들기");
@@ -85,43 +86,6 @@ export function TimerDashboardWorkspace({ app, spec }: TimerDashboardWorkspacePr
     }
   }, [timers]);
 
-  // Timestamp-based countdown — accurate across pauses and background-tab throttling.
-  useEffect(() => {
-    if (!running) return;
-    const tick = () => {
-      const end = endTimeRef.current ?? Date.now();
-      const remaining = Math.max(0, Math.round((end - Date.now()) / 1000));
-      setSecondsLeft(remaining);
-      if (remaining <= 0) {
-        setRunning(false);
-        setFinished(true);
-        playAlert();
-      }
-    };
-    const interval = window.setInterval(tick, 250);
-    tick();
-    return () => window.clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running]);
-
-  function changeGroupCount(value: number) {
-    if (!Number.isFinite(value)) return; // 입력을 지우는 중이면 현재 값을 유지한다.
-    const count = Math.max(2, Math.min(12, value));
-    setGroupCount(count);
-    // 모둠 수만 바꿀 때 이미 섞어둔 발표 순서와 진행 위치를 보존한다.
-    setOrder((current) => {
-      if (count === current.length) return current;
-      if (count < current.length) return current.slice(0, count);
-      const existing = new Set(current);
-      const additions: number[] = [];
-      for (let group = 1; additions.length < count - current.length; group += 1) {
-        if (!existing.has(group)) additions.push(group);
-      }
-      return [...current, ...additions];
-    });
-    setPresenterIndex((index) => Math.min(index, count - 1));
-  }
-
   const playAlert = useCallback(() => {
     try {
       const ctx = audioRef.current ?? new AudioContext();
@@ -149,6 +113,42 @@ export function TimerDashboardWorkspace({ app, spec }: TimerDashboardWorkspacePr
     }
   }, []);
 
+  // Timestamp-based countdown — accurate across pauses and background-tab throttling.
+  useEffect(() => {
+    if (!running) return;
+    const tick = () => {
+      const end = endTimeRef.current ?? Date.now();
+      const remaining = Math.max(0, Math.round((end - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining <= 0) {
+        setRunning(false);
+        setFinished(true);
+        playAlert();
+      }
+    };
+    const interval = window.setInterval(tick, 250);
+    tick();
+    return () => window.clearInterval(interval);
+  }, [running, playAlert]);
+
+  function changeGroupCount(value: number) {
+    if (!Number.isFinite(value)) return; // 입력을 지우는 중이면 현재 값을 유지한다.
+    const count = Math.max(2, Math.min(12, value));
+    setGroupCount(count);
+    // 모둠 수만 바꿀 때 이미 섞어둔 발표 순서와 진행 위치를 보존한다.
+    setOrder((current) => {
+      if (count === current.length) return current;
+      if (count < current.length) return current.slice(0, count);
+      const existing = new Set(current);
+      const additions: number[] = [];
+      for (let group = 1; additions.length < count - current.length; group += 1) {
+        if (!existing.has(group)) additions.push(group);
+      }
+      return [...current, ...additions];
+    });
+    setPresenterIndex((index) => Math.min(index, count - 1));
+  }
+
   function ensureAudio() {
     try {
       const ctx = audioRef.current ?? new AudioContext();
@@ -160,21 +160,15 @@ export function TimerDashboardWorkspace({ app, spec }: TimerDashboardWorkspacePr
   }
 
   function startRun() {
-    if (secondsLeft <= 0) {
-      resetActiveTimer();
-      return;
-    }
+    const seconds = secondsLeft > 0 ? secondsLeft : totalSeconds;
     ensureAudio();
-    endTimeRef.current = Date.now() + secondsLeft * 1000;
+    setSecondsLeft(seconds);
+    endTimeRef.current = Date.now() + seconds * 1000;
     setFinished(false);
     setRunning(true);
   }
 
   function toggleRun() {
-    if (finished) {
-      resetActiveTimer();
-      return;
-    }
     if (running) {
       setRunning(false);
     } else {
@@ -246,32 +240,35 @@ export function TimerDashboardWorkspace({ app, spec }: TimerDashboardWorkspacePr
   const primaryLabel = finished ? "다시 시작" : running ? "일시정지" : secondsLeft <= 0 ? "다시 시작" : "시작";
 
   return (
-    <main className="mvp-page timer-dashboard-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <Clock3 size={17} />
-              교실 운영 보드
-            </span>
-            <p>{app.category} · {spec.workLabel}</p>
-          </div>
-          <strong>{app.shortDescription}</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-        </div>
-      </section>
-
+    <main className="workspace-page timer-dashboard-page">
+      <WorkspaceHeader title={app.title} navigation="tabs" steps={["타이머 설정", "수업 진행"]} current={stage} onStep={setStage} onPrevious={stage > 0 ? () => setStage(stage - 1) : undefined} onNext={stage < 1 ? () => setStage(stage + 1) : undefined} />
+      <div className="workspace-body">
       <section className="timer-dashboard-layout">
-        <form className="timer-create-panel" onSubmit={createTimer}>
+        <form hidden={stage !== 0} className="timer-create-panel" onSubmit={createTimer}>
           <div className="mvp-panel-heading">
             <Plus size={18} />
-            <strong>타이머 생성</strong>
+            <strong>타이머 선택</strong>
           </div>
+          <div className="timer-preset-list" aria-label="저장한 타이머">
+            {timers.map((timer) => (
+              <div className={`timer-preset-item ${timer.id === activeId ? "is-active" : ""}`} key={timer.id}>
+                <button type="button" className="timer-preset-select" onClick={() => chooseTimer(timer)}>
+                  <span>{timer.name}</span>
+                  <strong>{timer.minutes}분</strong>
+                </button>
+                <button
+                  type="button"
+                  className="timer-preset-delete"
+                  aria-label={`${timer.name} 삭제`}
+                  disabled={timers.length <= 1}
+                  onClick={() => deleteTimer(timer.id)}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <details className="timer-new-details"><summary>새 타이머 추가</summary><div className="timer-new-fields">
           <label className="mvp-field">
             <span>타이머 이름</span>
             <input value={timerName} placeholder="예: 모둠 발표" onChange={(event) => setTimerName(event.target.value)} />
@@ -295,28 +292,11 @@ export function TimerDashboardWorkspace({ app, spec }: TimerDashboardWorkspacePr
             추가
           </button>
 
-          <div className="timer-preset-list" aria-label="저장한 타이머">
-            {timers.map((timer) => (
-              <div className={`timer-preset-item ${timer.id === activeId ? "is-active" : ""}`} key={timer.id}>
-                <button type="button" className="timer-preset-select" onClick={() => chooseTimer(timer)}>
-                  <span>{timer.name}</span>
-                  <strong>{timer.minutes}분</strong>
-                </button>
-                <button
-                  type="button"
-                  className="timer-preset-delete"
-                  aria-label={`${timer.name} 삭제`}
-                  disabled={timers.length <= 1}
-                  onClick={() => deleteTimer(timer.id)}
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            ))}
-          </div>
+          </div></details>
         </form>
 
-        <section className="timer-main-panel" aria-label="선택한 타이머">
+        <section hidden={stage !== 1} className="timer-main-panel" aria-label="선택한 타이머">
+          <div className="timer-run-clock">
           <div className="timer-main-top">
             <span><Clock3 size={18} /> 실행 타이머</span>
             <strong>{activeTimer.name}</strong>
@@ -355,6 +335,7 @@ export function TimerDashboardWorkspace({ app, spec }: TimerDashboardWorkspacePr
             </button>
           </div>
 
+          </div>
           <div className="timer-presenter" aria-label="발표 순서">
             <div className="timer-presenter-head">
               <span><Megaphone size={16} /> 발표 순서</span>
@@ -394,6 +375,7 @@ export function TimerDashboardWorkspace({ app, spec }: TimerDashboardWorkspacePr
           </div>
         </section>
       </section>
+      </div>
     </main>
   );
 }

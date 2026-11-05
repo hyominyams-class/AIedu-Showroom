@@ -37,6 +37,7 @@ export function LandingIntroGate({ children }: LandingIntroGateProps) {
 
   const playTone = useCallback(
     (frequency: number, duration: number, gainValue: number, delay = 0) => {
+      if (navigator.userActivation && !navigator.userActivation.isActive) return;
       const context = getAudioContext();
       if (!context) return;
 
@@ -70,15 +71,24 @@ export function LandingIntroGate({ children }: LandingIntroGateProps) {
   }, [playTone]);
 
   const enterLanding = useCallback(() => {
-    if (!isComplete || isLeaving) return;
+    if (isLeaving) return;
 
     playClickSound();
     setIsLeaving(true);
+    try { window.sessionStorage.setItem("showroom:intro:seen", "1"); } catch { /* Browsing remains available without storage. */ }
     window.setTimeout(() => setIsHidden(true), 760);
-  }, [isComplete, isLeaving, playClickSound]);
+  }, [isLeaving, playClickSound]);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Restore the visit preference and respect reduced motion after hydration. */
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem("showroom:intro:seen") === "1" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) setIsHidden(true);
+    } catch { /* Show the short introduction if storage is unavailable. */ }
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
-    if (isLeaving || isComplete) return;
+    if (isHidden || isLeaving || isComplete) return;
 
     const timer = window.setTimeout(() => {
       setTypedCount((current) => current + 1);
@@ -86,17 +96,17 @@ export function LandingIntroGate({ children }: LandingIntroGateProps) {
     }, typedCount === 0 ? 460 : 42);
 
     return () => window.clearTimeout(timer);
-  }, [isComplete, isLeaving, playTypeSound, typedCount]);
+  }, [isComplete, isHidden, isLeaving, playTypeSound, typedCount]);
 
   useEffect(() => {
-    if (!isComplete || isLeaving) return;
+    if (isHidden || !isComplete || isLeaving) return;
 
     const timer = window.setTimeout(() => {
       enterLanding();
     }, 2000);
 
     return () => window.clearTimeout(timer);
-  }, [enterLanding, isComplete, isLeaving]);
+  }, [enterLanding, isComplete, isHidden, isLeaving]);
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
     if (event.key === "Enter" || event.key === " ") {
@@ -107,7 +117,7 @@ export function LandingIntroGate({ children }: LandingIntroGateProps) {
 
   return (
     <>
-      {children}
+      <div inert={!isHidden ? true : undefined}>{children}</div>
       {!isHidden ? (
         <section
           className={`intro-gate ${isLeaving ? "is-leaving" : ""} ${isComplete ? "is-ready" : ""}`}

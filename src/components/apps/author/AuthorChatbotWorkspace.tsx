@@ -1,10 +1,12 @@
 "use client";
 
-import { Bot, BookOpenText, Loader2, MessageSquareText, RotateCcw, Send } from "lucide-react";
-import Link from "next/link";
+import { Bot, BookOpenText, Download, Loader2, MessageSquareText, RotateCcw, Send } from "lucide-react";
+import { useAiGeneration } from "@/components/mvp/useAiGeneration";
+import { GenerationNotice, WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
 import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
+import { downloadText } from "@/components/mvp/MvpStorage";
 
 type AuthorChatbotWorkspaceProps = {
   app: AppItem;
@@ -67,16 +69,30 @@ const starterMessages: ChatMessage[] = [
   },
 ];
 
-export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProps) {
+export function AuthorChatbotWorkspace({ app }: AuthorChatbotWorkspaceProps) {
   const [sourceText, setSourceText] = useState(defaultSource);
   const [tone, setTone] = useState("warm");
   const [question, setQuestion] = useState("강아지똥은 왜 민들레에게 자신을 내어주었나요?");
   const [messages, setMessages] = useState<ChatMessage[]>(starterMessages);
-  const [loading, setLoading] = useState(false);
+  const ai = useAiGeneration(app.slug);
+  const loading = ai.pending;
+  const [step, setStep] = useState(0);
   const [typing, setTyping] = useState(false);
-  const [aiNotice, setAiNotice] = useState(false);
+  const recovered = useRef(false);
   const typingTimer = useRef<number | null>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Restore the authenticated browser's completed conversation. */
+  useEffect(() => {
+    if (!ai.quota || recovered.current) return;
+    recovered.current = true;
+    const restored: ChatMessage[] = ai.history.flatMap((result) => typeof result.message === "string" ? [
+      ...(typeof result.question === "string" ? [{ role: "user" as const, content: result.question }] : []),
+      { role: "assistant" as const, content: result.message },
+    ] : []);
+    if (restored.length) setMessages([...starterMessages, ...restored]);
+  }, [ai.quota, ai.history]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const authorPrompt = tonePresets.find((preset) => preset.id === tone)?.prompt ?? defaultAuthorPrompt;
   const busy = loading || typing;
@@ -94,48 +110,17 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
     if (thread) {
       thread.scrollTop = thread.scrollHeight;
     }
-  }, [messages, loading, typing]);
+  }, [messages, loading, typing, step]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleanQuestion = question.trim();
-    if (!cleanQuestion || busy) return;
-
+    if (!cleanQuestion || busy || ai.unavailable) return;
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: cleanQuestion }];
     setMessages(nextMessages);
-    setQuestion("");
-    setLoading(true);
-
-    let answer = "";
-    let usedFallback = false;
-    try {
-      const response = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          appSlug: app.slug,
-          mode: "chat",
-          values: {
-            topic: "강아지똥",
-            level: "작가와의 만남",
-            notes: sourceText,
-            question: cleanQuestion,
-            authorPrompt,
-          },
-          messages: nextMessages,
-        }),
-      });
-      const data = await response.json();
-      answer = data?.message || data?.lead || fallbackAnswer(cleanQuestion, sourceText, authorPrompt);
-      usedFallback = !data?.message || data?.source === "fallback";
-    } catch {
-      answer = fallbackAnswer(cleanQuestion, sourceText, authorPrompt);
-      usedFallback = true;
-    }
-
-    setLoading(false);
-    setAiNotice(usedFallback);
-    typeAssistantMessage(answer);
+    const data = await ai.generate({ values: { topic: "강아지똥", level: "작가와의 만남", notes: sourceText, question: cleanQuestion, authorPrompt }, messages: nextMessages });
+    if (data?.message) { setQuestion(""); typeAssistantMessage(data.message); }
+    else setMessages(messages);
   }
 
   function typeAssistantMessage(answer: string) {
@@ -164,46 +149,38 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
     }, 22);
   }
 
+  function openHistory() {
+    const restored: ChatMessage[] = ai.history.flatMap((result) => typeof result.message === "string" ? [
+      ...(typeof result.question === "string" ? [{ role: "user" as const, content: result.question }] : []),
+      { role: "assistant" as const, content: result.message },
+    ] : []);
+    setMessages([...starterMessages, ...restored]);
+  }
+
   function resetChat() {
+    recovered.current = true;
     if (typingTimer.current) {
       window.clearInterval(typingTimer.current);
       typingTimer.current = null;
     }
     setMessages(starterMessages);
     setQuestion("강아지똥은 왜 민들레에게 자신을 내어주었나요?");
-    setLoading(false);
     setTyping(false);
-    setAiNotice(false);
+    ai.clearError();
   }
 
   return (
-    <main className="mvp-page app-special-page author-chatbot-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <Bot size={17} />
-              대화방
-            </span>
-            <p>{app.category} · {spec.workLabel}</p>
-          </div>
-          <strong>{app.shortDescription}</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-        </div>
-      </section>
-
+    <main className="workspace-page author-chatbot-page">
+      <WorkspaceHeader title={app.title} steps={["작품", "말투", "대화"]} current={step} onStep={setStep} busy={busy} quota={ai.quota} onPrevious={step > 0 ? () => setStep(step - 1) : undefined} onNext={step < 2 ? () => setStep(step + 1) : undefined} nextLabel={step === 1 ? "대화 시작" : "다음"} />
+      <div className="workspace-body">
+      <GenerationNotice exhausted={ai.quota?.remaining === 0} error={ai.error} pending={Boolean(ai.quota?.busy) && !ai.pending} onRetry={() => { ai.clearError(); void ai.refresh(); }} />
       <section className="author-chat-layout">
-        <aside className="author-source-panel">
+        <aside className="author-source-panel" hidden={step === 2}>
           <div className="mvp-panel-heading">
             <MessageSquareText size={18} />
             <strong>챗봇 설정</strong>
           </div>
-          <section className="author-prompt-card" aria-label="작가 말투">
+          <section className="author-prompt-card" aria-label="작가 말투" hidden={step !== 1}>
             <div className="author-source-title">
               <span><MessageSquareText size={15} /> 작가 말투</span>
               <strong>{tonePresets.find((preset) => preset.id === tone)?.label}</strong>
@@ -224,25 +201,29 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
             </div>
           </section>
 
-          <section className="author-source-stack" aria-label="동화책 원문">
+          <section className="author-source-stack" aria-label="작품 내용" hidden={step !== 0}>
             <div className="author-source-title">
-              <span><BookOpenText size={15} /> 동화책 원문</span>
-              <strong>강아지똥</strong>
+              <span><BookOpenText size={15} /> 작품 내용</span>
+              <strong>강아지똥 · 예시 줄거리</strong>
             </div>
             <label className="mvp-field author-source-field">
-              <span>원문</span>
-              <textarea value={sourceText} onChange={(event) => setSourceText(event.target.value)} />
+              <span>줄거리·발췌문</span>
+              <textarea maxLength={16000} value={sourceText} onChange={(event) => setSourceText(event.target.value)} />
             </label>
           </section>
         </aside>
 
-        <section className="author-chat-panel" aria-label="작가와의 대화방">
+        <section className="author-chat-panel" aria-label="작가와의 대화방" hidden={step !== 2}>
           <div className="author-chat-header">
             <span><Bot size={18} /> 작가와의 만남</span>
-            <button className="button-secondary" type="button" onClick={resetChat}>
+            <div className="author-chat-actions">
+            {messages.length === 1 && ai.history.length > 0 && <button className="button-secondary" type="button" onClick={openHistory}>이전 답변</button>}
+            {messages.length > 1 && <button className="button-secondary" type="button" disabled={busy} onClick={() => downloadText("작가와의-대화.txt", messages.map((message) => `${message.role === "user" ? "질문" : "답변"}: ${message.content}`).join("\n\n"))}><Download size={16} />대화 저장</button>}
+            <button className="button-secondary" type="button" onClick={resetChat} disabled={busy}>
               <RotateCcw size={17} />
               새 대화
             </button>
+            </div>
           </div>
 
           <div className="author-chat-thread" aria-live="polite" ref={threadRef}>
@@ -259,57 +240,24 @@ export function AuthorChatbotWorkspace({ app, spec }: AuthorChatbotWorkspaceProp
             ) : null}
           </div>
 
-          {aiNotice && !busy ? (
-            <p className="author-ai-notice">AI 연결이 없어 준비된 작가 답변으로 이어가요.</p>
-          ) : null}
-
           <form className="author-chat-form" onSubmit={submit}>
             <input
+              aria-label="작가에게 질문"
+              maxLength={4000}
               value={question}
               disabled={busy}
               placeholder={busy ? "작가가 답하는 중이에요" : "작가에게 묻고 싶은 말을 입력하세요."}
               onChange={(event) => setQuestion(event.target.value)}
             />
-            <button className="button-primary" disabled={busy || !question.trim()} type="submit" aria-label="보내기">
+            <button className="button-primary" disabled={busy || ai.unavailable || !question.trim()} type="submit" aria-label="보내기">
               {busy ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
             </button>
           </form>
         </section>
       </section>
+      </div>
     </main>
   );
-}
-
-function fallbackAnswer(question: string, sourceText: string, authorPrompt: string) {
-  const source = sourceText.trim() || defaultSource;
-  const prompt = authorPrompt.trim();
-  const sourceLine = source.split(/\r?\n/).find((line) => line.trim())?.trim() || "강아지똥은 민들레를 피우는 거름이 됩니다.";
-
-  if (/한\s*문장|짧게|간단/.test(prompt)) {
-    return `강아지똥은 ${sourceLine} 그래서 자신이 누군가에게 필요할 수 있다는 마음으로 민들레에게 자신을 내어주었을 거예요.`;
-  }
-
-  if (/까칠|시크|퉁명|무뚝뚝|냉소|삐딱/.test(prompt)) {
-    return [
-      "글쎄, 대단한 이유를 새로 만들 필요는 없어.",
-      `${sourceLine} 그러니까 ${question}에 대한 답도 꽤 분명하지.`,
-      "자기가 할 수 있는 일이 그거였고, 처음으로 자기 쓸모를 찾았으니까 내어준 거야.",
-    ].join(" ");
-  }
-
-  if (/엄격|분명|단호|비판/.test(prompt)) {
-    return [
-      "강아지똥의 선택은 자기 역할을 찾은 결정으로 볼 수 있어요.",
-      `${sourceLine} 이 흐름은 쓸모없어 보이던 존재가 생명을 돕는 순간을 보여줍니다.`,
-      `${question} 이 질문에는, 민들레를 살릴 수 있는 일이 자기에게 주어진 가장 분명한 역할이었기 때문이라고 답할 수 있어요.`,
-    ].join(" ");
-  }
-
-  return [
-    `네 질문을 들으니 강아지똥이 오래 품고 있던 마음이 떠오르네.`,
-    `작품에서는 ${sourceLine}`,
-    `${question} 이 질문에는 이렇게 답하고 싶어. 자신을 내어준다는 것은 사라지는 일이 아니라, 다른 생명 안에서 다시 피어나는 일이란다.`,
-  ].join(" ");
 }
 
 type MarkdownBlock =

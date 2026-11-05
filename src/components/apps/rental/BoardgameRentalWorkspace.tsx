@@ -1,7 +1,8 @@
 "use client";
 
-import { Clock3, Dice5, PackageCheck, RotateCcw, Undo2, Users } from "lucide-react";
-import Link from "next/link";
+import { Clock3, PackageCheck, RotateCcw, Undo2, Users } from "lucide-react";
+import { PageControls } from "@/components/mvp/PageControls";
+import { WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
 import { useEffect, useMemo, useState } from "react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
@@ -14,7 +15,7 @@ import {
   newRowId,
   nowIso,
   saveStoredState,
-  SheetDock,
+  FakeSheetPanel,
   SheetTabData,
   useSheetDock,
   useSheetWriter,
@@ -87,6 +88,8 @@ function overdueDays(iso: string) {
 }
 
 export function BoardgameRentalWorkspace({ app }: RentalWorkspaceProps) {
+  const [stage, setStage] = useState(0);
+  const [shelfPage, setShelfPage] = useState(0);
   const [state, setState] = useState<RentalState>(STATIC_SEED);
   const [rentingGameId, setRentingGameId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -226,28 +229,11 @@ export function BoardgameRentalWorkspace({ app }: RentalWorkspaceProps) {
   };
 
   return (
-    <main className="mvp-page rentapp-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <Dice5 size={17} />
-              학급 물품 보드
-            </span>
-            <p>{app.category} · 장부 시트 연동</p>
-          </div>
-          <strong>{app.shortDescription}</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-        </div>
-      </section>
-
+    <main className="workspace-page rentapp-page">
+      <WorkspaceHeader title={app.title} navigation="tabs" steps={["게임 선반", "대여·반납", "장부"]} current={stage} onStep={setStage} onPrevious={stage > 0 ? () => setStage(stage - 1) : undefined} onNext={stage < 2 ? () => setStage(stage + 1) : undefined} actions={<span className="workspace-local-note">이 기기에서 체험</span>} />
+      <div className="workspace-body">
       <section className="rentapp-layout">
-        <aside className="rentapp-side-panel">
+        <aside hidden={stage !== 1} className="rentapp-side-panel">
           <div className="mvp-panel-heading">
             <strong>지금 대여 중</strong>
             <span className="rentapp-side-count">
@@ -297,14 +283,15 @@ export function BoardgameRentalWorkspace({ app }: RentalWorkspaceProps) {
           </button>
         </aside>
 
-        <section className="rentapp-shelf-panel" aria-label="보드게임 선반">
+        <section hidden={stage !== 0} className="rentapp-shelf-panel" aria-label="보드게임 선반">
           <div className="rentapp-shelf-head">
             <strong>학급 보드게임 선반</strong>
             <span>{GAMES.length}종 · {totalStock}개 보유</span>
+            <PageControls page={shelfPage} total={Math.ceil(GAMES.length / 4)} onPage={setShelfPage} label="게임 선반 페이지" />
           </div>
 
           <div className="rentapp-game-grid">
-            {GAMES.map((game) => {
+            {GAMES.slice(shelfPage * 4, shelfPage * 4 + 4).map((game) => {
               const left = availableCount(game.id);
               const renting = rentingGameId === game.id;
               return (
@@ -361,19 +348,16 @@ export function BoardgameRentalWorkspace({ app }: RentalWorkspaceProps) {
         </section>
       </section>
 
-      <div className="rentapp-dock-slot">
-        <SheetDock
+      <div hidden={stage !== 2} className="workspace-records-panel">
+        <FakeSheetPanel
           fileName={SHEET_FILE_NAME}
           tabs={[ledgerTab, catalogTab]}
           activeTabId={dock.activeTabId}
           onSelectTab={dock.showTab}
-          open={dock.open}
-          onOpenChange={dock.onOpenChange}
           writing={writing}
           flashRowIds={flashRowIds}
-          newRowCount={dock.newRowCount}
-          hint="반납 체크로 장부를 정리해요"
         />
+      </div>
       </div>
     </main>
   );

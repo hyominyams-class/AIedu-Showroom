@@ -30,7 +30,7 @@ export function AccessCodeForm({ showHeading = true }: AccessCodeFormProps) {
       });
 
       if (!response.ok) {
-        setError("입장 코드가 맞지 않습니다.");
+        setError(response.status === 401 ? "입장 코드가 맞지 않습니다." : "입장을 확인하지 못했어요. 새로고침한 뒤 다시 시도해 주세요.");
         return;
       }
 

@@ -4,21 +4,25 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "test:ai": "tsx --test scripts/ai-quota.test.ts",
     "assets": "node scripts/generate-assets.mjs",
     "assets:external": "node scripts/capture-external-thumbs.mjs",
-    "verify:games": "node scripts/verify-game-mvp.mjs"
+    "verify:games": "node scripts/verify-game-mvp.mjs",
+    "verify:flows": "node scripts/verify-showroom-flows.mjs",
+    "capture:apps": "node scripts/capture-workspaces.mjs"
   },
   "dependencies": {
     "@fontsource/noto-serif-kr": "^5.2.9",
     "@fontsource/pretendard": "^5.2.5",
     "@radix-ui/react-dialog": "^1.1.17",
     "@radix-ui/react-tooltip": "^1.2.10",
+    "@vercel/blob": "^2.8.2",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.21.0",
-    "next": "16.2.9",
+    "next": "^16.4.5",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -28,8 +32,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "^16.4.5",
+    "playwright": "^1.64.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@vercel/cli-config": "0.3.6"
   }
 }

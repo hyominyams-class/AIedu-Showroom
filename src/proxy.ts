@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ACCESS_COOKIE_NAME, ACCESS_COOKIE_VALUE } from "@/lib/access";
+import { visitorFromRequest } from "@/lib/server/session";
 
 export function proxy(request: NextRequest) {
-  const hasAccess = request.cookies.get(ACCESS_COOKIE_NAME)?.value === ACCESS_COOKIE_VALUE;
+  const hasAccess = Boolean(visitorFromRequest(request));
 
   if (!hasAccess) {
     return NextResponse.redirect(new URL("/login", request.url));

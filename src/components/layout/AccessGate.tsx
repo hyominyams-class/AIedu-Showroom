@@ -16,11 +16,6 @@ export function AccessGate({ children }: AccessGateProps) {
     let active = true;
 
     async function checkAccess() {
-      if (window.sessionStorage.getItem(ACCESS_STORAGE_KEY) === "true") {
-        setHasAccess(true);
-        return;
-      }
-
       try {
         const response = await fetch("/api/access-status", { cache: "no-store" });
         const data = (await response.json()) as { hasAccess?: boolean };

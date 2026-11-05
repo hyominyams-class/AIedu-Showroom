@@ -1,0 +1,62 @@
+# Deployment source excludes local secrets, generated builds, and review artifacts.
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+/output/
+/.playwright-cli/
+/.codex-*.png
+/tmp/
+
+# next.js
+/.next/
+/.next-upgrade/
+/.next-production/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+local.env
+.showroom-data/
+
+# vercel
+.vercel
+
+# generated visual backups
+/public/visuals/_backup-thumbnails-*/
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+.git/
+
+# Exclude the directory entries as well as their contents.
+.next*
+output
+.showroom-data
+.playwright-cli

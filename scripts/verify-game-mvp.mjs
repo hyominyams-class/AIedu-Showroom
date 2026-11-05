@@ -47,7 +47,7 @@ async function state(page) {
 }
 
 async function screenshot(page, name, options = {}) {
-  await page.screenshot({ path: path.join(outDir, `${name}.png`), fullPage: options.fullPage ?? true });
+  await page.screenshot({ animations: "disabled", path: path.join(outDir, `${name}.png`), fullPage: options.fullPage ?? true });
 }
 
 async function verifyAddition(page) {
@@ -79,6 +79,8 @@ async function verifyAddition(page) {
   if (complete.mode !== "complete") throw new Error(`addition did not complete: ${complete.mode}`);
   if (complete.matchedPairs !== 8) throw new Error(`addition matched count wrong: ${complete.matchedPairs}`);
   await screenshot(page, "addition-complete-desktop");
+  await page.getByRole("button", { name: "처음부터", exact: true }).click();
+  if ((await state(page)).mode !== "ready") throw new Error("addition reset failed");
 
   await page.setViewportSize({ width: 390, height: 920 });
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -144,18 +146,75 @@ async function verifyHistory(page) {
   const ended = await state(page);
   if (ended.mode !== "ended") throw new Error(`history did not end after time advance: ${ended.mode}`);
   await screenshot(page, "history-ended-desktop");
+  await page.getByRole("button", { name: "다시 도전", exact: true }).click();
+  if ((await state(page)).mode !== "playing") throw new Error("history restart failed");
 
   await page.setViewportSize({ width: 390, height: 920 });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: /시작하기/ }).waitFor();
   await page.getByRole("button", { name: /시작하기/ }).click();
   await page.waitForTimeout(150);
+  await page.evaluate(() => window.advanceTime?.(3000));
+  await page.waitForTimeout(100);
+  const sizing = await page.locator("canvas").evaluate((canvas) => ({ backing: canvas.width, expected: Math.round(canvas.getBoundingClientRect().width * Math.min(3, devicePixelRatio)) }));
+  if (Math.abs(sizing.backing - sizing.expected) > 1) throw new Error("history canvas backing dimensions do not match its display");
   await screenshot(page, "history-playing-mobile", { fullPage: false });
+}
+
+async function verifyRunner(page) {
+  await page.setViewportSize({ width: 1365, height: 900 });
+  await page.goto(`${baseUrl}/apps/neon-rhythm-runner/work`);
+  await page.getByRole("button", { name: "러너 시작", exact: true }).click();
+  if ((await state(page)).mode !== "playing") throw new Error("runner start failed");
+  await page.keyboard.press("ArrowUp");
+  await page.evaluate(() => window.advanceTime?.(120));
+  if ((await state(page)).runner.heightAboveGround <= 0) throw new Error("runner jump failed");
+  await page.evaluate(() => window.advanceTime?.(1400));
+  await page.keyboard.press("ArrowDown");
+  if (!(await state(page)).runner.sliding) throw new Error("runner slide failed");
+  await screenshot(page, "runner-playing-desktop");
+  await page.getByRole("button", { name: "일시정지", exact: true }).click();
+  const paused = await state(page);
+  await page.evaluate(() => window.advanceTime?.(1000));
+  if ((await state(page)).distance !== paused.distance) throw new Error("runner pause failed");
+  await page.getByRole("button", { name: "이어하기", exact: true }).click();
+  await page.evaluate(() => window.advanceTime?.(120000));
+  if ((await state(page)).mode !== "ended") throw new Error("runner end failed");
+  await screenshot(page, "runner-ended-desktop");
+  await page.getByRole("button", { name: "다시 도전", exact: true }).click();
+  if ((await state(page)).mode !== "playing") throw new Error("runner restart failed");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "대기 화면", exact: true }).click();
+  await page.locator("canvas").click();
+  if ((await state(page)).mode !== "playing") throw new Error("runner touch start failed");
+  await screenshot(page, "runner-playing-mobile", { fullPage: false });
+}
+
+async function verifyAdventure(page) {
+  await page.setViewportSize({ width: 1365, height: 900 });
+  await page.goto(`${baseUrl}/apps/liberation-text-adventure/work`);
+  await page.getByRole("button", { name: "첫 장을 펼친다", exact: true }).click();
+  for (let count = 0; count < 24; count++) {
+    await page.evaluate(() => window.advanceTime?.(30000));
+    await page.waitForFunction(() => JSON.parse(window.render_game_to_text()).revealed);
+    const current = await state(page);
+    if (current.isEnding) break;
+    if (!current.choices.length) throw new Error("adventure has no available choice");
+    await page.locator(".adv-choice").first().click();
+  }
+  const ended = await state(page);
+  if (!ended.isEnding) throw new Error("adventure did not reach an ending");
+  await screenshot(page, "adventure-ending-desktop");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await screenshot(page, "adventure-ending-mobile", { fullPage: false });
+  await page.getByRole("button", { name: "처음부터 다시", exact: true }).click();
+  if ((await state(page)).sceneId !== "intro") throw new Error("adventure restart failed");
 }
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
+  page.setDefaultNavigationTimeout(90000);
   page.on("console", (msg) => {
     if (msg.type() === "error") errors.push(msg.text());
   });
@@ -164,6 +223,8 @@ async function main() {
   await grantAccess(page);
   await verifyAddition(page);
   await verifyHistory(page);
+  await verifyRunner(page);
+  await verifyAdventure(page);
 
   await browser.close();
   fs.writeFileSync(path.join(outDir, "console-errors.json"), JSON.stringify(errors, null, 2));

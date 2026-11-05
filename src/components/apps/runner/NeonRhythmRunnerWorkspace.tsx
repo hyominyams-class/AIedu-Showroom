@@ -9,9 +9,9 @@
  * no behavioural gain. Game flows are covered by `npm run verify:games`.
  */
 
-import Link from "next/link";
+import { WorkspaceHeader } from "@/components/mvp/WorkspaceHeader";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Zap } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { AppItem } from "@/data/apps";
 import { MvpSpec } from "@/data/mvp";
 
@@ -177,7 +177,7 @@ type AudioEngine = {
   noise: AudioBuffer;
 };
 
-export function NeonRhythmRunnerWorkspace({ app, spec }: NeonRhythmRunnerWorkspaceProps) {
+export function NeonRhythmRunnerWorkspace({ app }: NeonRhythmRunnerWorkspaceProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number | null>(null);
@@ -763,29 +763,10 @@ export function NeonRhythmRunnerWorkspace({ app, spec }: NeonRhythmRunnerWorkspa
   const primaryLabel = snapshot.mode === "ended" ? "다시 도전" : snapshot.mode === "ready" ? "러너 시작" : "처음부터";
 
   return (
-    <main className="runner-page">
-      <section className="mvp-topbar mvp-showroom-hero mvp-work-hero runner-hero">
-        <div className="mvp-hero-copy">
-          <div className="mvp-hero-title-row">
-            <h1>{app.title}</h1>
-            <span className="mvp-surface-icon">
-              <Zap size={16} />
-              네온 트랙
-            </span>
-            <p>
-              {app.category} · {spec.workLabel}
-            </p>
-          </div>
-          <strong>비트에 맞춰 점프하고 슬라이드하며 네온 장애물을 피하고 오브를 모으는 횡스크롤 러너입니다.</strong>
-        </div>
-        <div className="mvp-hero-actions">
-          <Link className="button-secondary" href="/library">
-            앱 선택
-          </Link>
-        </div>
-      </section>
-
+    <main className="workspace-page game-workspace runner-page">
+      <WorkspaceHeader title={app.title} steps={["준비", "달리기", "결과"]} current={snapshot.mode === "ready" ? 0 : snapshot.mode === "ended" ? 2 : 1} />
       <section className="runner-stage">
+        <div className="runner-mobile-stats" aria-label="러너 기록"><span>점수 <strong>{snapshot.score}</strong></span><span>거리 <strong>{snapshot.distance}m</strong></span><span>생명 <strong>{snapshot.lives}</strong></span></div>
         <div className="runner-canvas-wrap">
           <canvas
             ref={canvasRef}
@@ -833,6 +814,7 @@ export function NeonRhythmRunnerWorkspace({ app, spec }: NeonRhythmRunnerWorkspa
           </span>
           <span>화면 위/아래 터치도 가능</span>
         </div>
+        <div className="runner-touch-controls"><button className="button-primary" type="button" onClick={jump} disabled={snapshot.mode !== "playing"}>점프</button><button className="button-secondary" type="button" onClick={slide} disabled={snapshot.mode !== "playing"}>슬라이드</button></div>
 
         {snapshot.mode === "ended" ? (
           <div className="runner-result" aria-live="polite">

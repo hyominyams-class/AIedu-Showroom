@@ -1,19 +1,12 @@
-import { readFileSync } from "node:fs";
-import { extname, join, normalize } from "node:path";
+import { imageReferenceToBlob } from "@/lib/server/image-reference";
 import { getAppBySlug } from "@/data/apps";
 import { getMvpSpec } from "@/data/mvp";
-import { MvpOutput, buildLocalOutput } from "@/components/mvp/MvpStorage";
-
-type AiRequest = {
-  appSlug?: string;
-  mode?: "text" | "image" | "mixed" | "chat";
-  values?: Record<string, string>;
-  referenceImage?: string;
-  messages?: {
-    role: "user" | "assistant";
-    content: string;
-  }[];
-};
+import { buildLocalOutput } from "@/components/mvp/MvpStorage";
+import { parseAiRequest, type AiRequest } from "@/lib/server/ai-request";
+import { serverEnv } from "@/lib/server/env";
+import { finishGeneration, getQuota, QuotaError, releaseGeneration, reserveGeneration } from "@/lib/server/quota";
+import { sameOrigin, visitorFromRequest } from "@/lib/server/session";
+import { writeImage } from "@/lib/server/store";
 
 export const maxDuration = 180;
 
@@ -28,98 +21,61 @@ const AI_TIMEOUT_MS = {
 } as const;
 
 export async function POST(request: Request) {
+  const visitor = visitorFromRequest(request);
+  if (!visitor) return Response.json({ ok: false, error: "입장 시간이 끝났어요. 다시 입장해 주세요.", code: "unauthorized" }, { status: 401 });
+  if (!sameOrigin(request)) return Response.json({ ok: false, error: "이 화면에서 다시 시도해 주세요." }, { status: 403 });
   let body: AiRequest;
   try {
-    body = (await request.json()) as AiRequest;
-  } catch {
-    return Response.json({ ok: false, error: "잘못된 요청입니다." }, { status: 400 });
-  }
-  const app = body.appSlug ? getAppBySlug(body.appSlug) : undefined;
-
-  if (!app) {
-    return Response.json({ ok: false, error: "앱을 찾을 수 없습니다." }, { status: 404 });
-  }
-
-  const spec = getMvpSpec(app);
-
-  if (!spec) {
-    return Response.json({ ok: false, error: "앱 생성 기능이 없습니다." }, { status: 404 });
-  }
-
-  const values = body.values ?? {};
-  const fallback = buildLocalOutput(app, spec, values);
-  const textFallback = app.slug === "concept-explainer" ? buildConceptApiFallback(values, fallback) : fallback;
-
-  if (
-    (body.mode === "image" || body.mode === "mixed") &&
-    (app.slug === "poetry-picture-maker" || app.slug === "ai-invention-lab" || app.slug === "picturebook-scene-maker")
-  ) {
-    const imageUrl =
-      app.slug === "poetry-picture-maker"
-        ? "/visuals/poetry/rain-playground-poetry-poster.png"
-        : app.slug === "ai-invention-lab"
-          ? "/visuals/invention/auto-watering-planter-poster.png"
-          : "/visuals/picturebook/rain-puddle-word-scene.png";
-    return Response.json({ ok: true, ...fallback, imageUrl, source: "local" });
-  }
-
-  const apiKey = getOpenAiKey();
-
-  if (body.mode === "chat" && app.slug === "author-meet-chatbot") {
-    const fallbackMessage = buildAuthorFallback(values, body.messages ?? []);
-
-    if (!apiKey) {
-      return Response.json({ ok: true, message: fallbackMessage, source: "fallback" });
-    }
-
-    try {
-      const message = await generateAuthorChat(apiKey, values, body.messages ?? []);
-      return Response.json({
-        ok: true,
-        message: message || fallbackMessage,
-        source: message ? "live" : "fallback",
-      });
-    } catch (error) {
-      logAiFallback("author-chat", error);
-      return Response.json({ ok: true, message: fallbackMessage, source: "fallback" });
-    }
-  }
-
-  if (!apiKey) {
-    return Response.json({ ok: true, ...textFallback, source: "fallback" });
-  }
-
-  try {
-    if (body.mode === "image" || body.mode === "mixed") {
-      const image = await generateImage(apiKey, app.slug, app.title, spec.principle, values, body.referenceImage);
-
-      return Response.json({
-        ok: true,
-        ...fallback,
-        imageUrl: image || fallback.imageUrl,
-        source: image ? "live" : "fallback",
-      });
-    }
-
-    const text = await generateText(apiKey, app.slug, app.title, spec.principle, values);
-    if (app.slug === "concept-explainer" && !text) {
-      return Response.json({ ok: true, ...textFallback, source: "fallback" });
-    }
-    return Response.json({
-      ok: true,
-      ...textFallback,
-      ...text,
-      source: text ? "live" : "fallback",
-    });
+    if (Number(request.headers.get("content-length")) > 4_400_000) throw new Error("파일이 너무 커요.");
+    const raw = await request.text();
+    if (Buffer.byteLength(raw) > 4_400_000) throw new Error("파일이 너무 커요.");
+    body = parseAiRequest(JSON.parse(raw));
   } catch (error) {
-    logAiFallback(app.slug, error);
-    return Response.json({ ok: true, ...textFallback, source: "fallback" });
+    return Response.json({ ok: false, error: error instanceof SyntaxError ? "입력 내용을 확인해 주세요." : error instanceof Error ? error.message : "입력 내용을 확인해 주세요." }, { status: 400 });
   }
-}
-
-function logAiFallback(scope: string, error: unknown) {
-  const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-  console.error(`[ai/generate] ${scope} fell back to local output. ${message}`);
+  const app = getAppBySlug(body.appSlug);
+  const spec = app && getMvpSpec(app);
+  if (!app || app.externalUrl || !spec) return Response.json({ ok: false, error: "앱을 찾을 수 없어요." }, { status: 404 });
+  const apiKey = serverEnv("OPENAI_API_KEY");
+  if (!apiKey) return Response.json({ ok: false, error: "AI 생성 준비 중이에요. 잠시 후 다시 시도해 주세요." }, { status: 503 });
+  let reserved = false;
+  try {
+    const reservation = await reserveGeneration(visitor, body.appSlug, body.requestId);
+    if (reservation.cached) return Response.json({ ok: true, ...reservation.cached, quota: reservation.quota });
+    reserved = true;
+    let result: Record<string, unknown>;
+    if (body.mode === "chat") {
+      const message = await generateAuthorChat(apiKey, body.values, body.messages);
+      if (!message) throw new Error("Empty generation");
+      result = { message, question: body.messages.at(-1)?.content, source: "live", updatedAt: new Date().toISOString() };
+    } else if (body.mode === "image") {
+      const image = await generateImage(apiKey, app.slug, app.title, spec.principle, body.values, body.referenceImage);
+      if (!image?.startsWith("data:image/png;base64,")) throw new Error("Empty image generation");
+      await writeImage(`images/${visitor}/${body.requestId}.png`, Buffer.from(image.split(",")[1], "base64"));
+      result = { ...buildLocalOutput(app, spec, body.values), title: body.values.topic, imageUrl: `/api/ai/images/${body.requestId}`, source: "live", style: body.values.style || "poster", updatedAt: new Date().toISOString() };
+    } else {
+      const text = await generateText(apiKey, app.slug, app.title, spec.principle, body.values);
+      if (!text || typeof text !== "object") throw new Error("Empty generation");
+      result = { ...text, source: "live", updatedAt: new Date().toISOString() };
+    }
+    result.requestId = body.requestId;
+    if (body.mode !== "chat") result.inputValues = body.values;
+    const quota = await finishGeneration(visitor, body.appSlug, body.requestId, result);
+    return Response.json({ ok: true, ...result, quota }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    if (error instanceof QuotaError) {
+      const exhausted = error.code === "limit_reached";
+      return Response.json({ ok: false, code: error.code, quota: error.quota, error: exhausted ? "이 앱의 무료 체험을 모두 사용했어요. 만든 결과는 계속 볼 수 있어요." : "이미 생성 중이에요. 현재 결과가 나올 때까지 기다려 주세요." }, { status: exhausted ? 429 : 409 });
+    }
+    if (reserved) {
+      try { await releaseGeneration(visitor, body.appSlug, body.requestId); } catch { /* The reservation expires if storage is temporarily unavailable. */ }
+    }
+    // Never log prompts, API keys or upstream response bodies.
+    console.error("[ai/generate] request failed", { app: body.appSlug, kind: error instanceof Error ? error.name : "unknown" });
+    const current = await getQuota(visitor, body.appSlug).catch(() => undefined);
+    if (current?.latest?.requestId === body.requestId) return Response.json({ ok: true, ...current.latest, quota: current.quota });
+    return Response.json({ ok: false, code: "generation_failed", error: "생성을 확인하지 못했어요. 이전 결과는 그대로 남아 있어요. 잠시 후 다시 시도해 주세요.", quota: current?.quota }, { status: 503 });
+  }
 }
 
 async function generateAuthorChat(
@@ -139,7 +95,10 @@ async function generateAuthorChat(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_TEXT_MODEL || "gpt-5-mini",
+      model: serverEnv("OPENAI_TEXT_MODEL") || "gpt-5-mini",
+      store: false,
+      max_output_tokens: 800,
+      reasoning: { effort: "minimal" },
       input: [
         {
           role: "user",
@@ -149,7 +108,7 @@ async function generateAuthorChat(
     }),
   }, AI_TIMEOUT_MS.authorChat);
 
-  if (!response.ok) return undefined;
+  if (!response.ok) throw new Error(`AI provider returned ${response.status}`);
   const data = await response.json();
   return extractResponseText(data);
 }
@@ -189,189 +148,6 @@ function buildVisibleAuthorPrompt(
   ].join("\n");
 }
 
-function buildAuthorFallback(
-  values: Record<string, string>,
-  messages: { role: "user" | "assistant"; content: string }[],
-) {
-  const latestQuestion = [...messages].reverse().find((message) => message.role === "user")?.content || values.question || "";
-  const source = values.notes?.trim() || "강아지똥은 작은 존재도 누군가의 생명을 피울 수 있다는 마음을 담고 있습니다.";
-  const sourceLine = source.split(/\r?\n/).find((line) => line.trim())?.trim() || source;
-  const personaPrompt = values.authorPrompt?.trim() || "";
-
-  if (/까칠|시크|퉁명|무뚝뚝|냉소|삐딱/.test(personaPrompt)) {
-    return [
-      "글쎄, 답은 그렇게 복잡하지 않아.",
-      `${sourceLine} 그러니까 ${latestQuestion || "그 질문"}에 대한 답도 거기서 찾아야지.`,
-      "강아지똥은 자기 쓸모를 처음으로 발견했고, 민들레를 살릴 수 있는 일이 자기에게 남은 역할이라고 본 거야.",
-    ].join(" ");
-  }
-
-  return [
-    "네 질문을 들으니 강아지똥이 오래 품고 있던 마음이 떠오르네.",
-    `작품 속 ${sourceLine} 이 장면은 작고 낮은 자리에도 생명을 살리는 힘이 있다는 뜻으로 읽을 수 있어.`,
-    latestQuestion ? `"${latestQuestion}"라는 물음에는, 자신을 내어주는 일이 사라짐이 아니라 다른 생명 안에서 다시 피어나는 일이라고 답하고 싶어.` : "궁금한 장면을 하나 더 말해주면 그 마음을 이어서 이야기해볼게.",
-  ].join(" ");
-}
-
-function getOpenAiKey() {
-  if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
-
-  try {
-    const file = readFileSync(join(process.cwd(), "local.env"), "utf8");
-    const line = file
-      .split(/\r?\n/)
-      .map((item) => item.trim())
-      .find((item) => item.startsWith("OPENAI_API_KEY="));
-    return line?.replace(/^OPENAI_API_KEY=/, "").trim().replace(/^["']|["']$/g, "");
-  } catch {
-    return undefined;
-  }
-}
-
-function buildConceptApiFallback(values: Record<string, string>, fallback: MvpOutput) {
-  const question = values.topic?.trim() || "궁금한 내용";
-  const topic = extractConceptTarget(question);
-  const level = values.level?.trim() || "학생";
-  const context = cleanConceptContext(values.notes || "") || "오늘 수업";
-  const sourceSentence = cleanConceptContext(values.sourceSentence || "");
-  const payload = buildConceptFallbackPayload(topic, context, sourceSentence, level, values.length === "자세히");
-
-  return {
-    ...fallback,
-    ...payload,
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-function buildConceptFallbackPayload(topic: string, context: string, sourceSentence: string, level: string, isDetailed: boolean) {
-  const makePayload = (lead: string, answerBlocks: Record<string, unknown>[], emoji: string) => ({
-    title: buildSafeConceptTitle(topic),
-    lead,
-    emoji,
-    cards: answerBlocks.map((block) => {
-      const typed = block as { title?: string; body?: string; items?: string[]; rows?: { label: string; value: string }[] };
-      return {
-        title: typed.title || "설명",
-        body: typed.body || typed.items?.join(" ") || typed.rows?.map((row) => `${row.label}: ${row.value}`).join(" ") || "",
-      };
-    }),
-    answerMeta: {
-      term: topic,
-      sourceSentence,
-      lessonContext: context,
-      studentIntent: `${level} 수준에서 이해하기`,
-    },
-    answerBlocks,
-    notes: [],
-  });
-
-  if (topic.includes("경도")) {
-    const lead = "‘경도’는 본초자오선을 기준으로 어떤 장소가 동쪽이나 서쪽으로 얼마나 떨어져 있는지 나타내는 값이에요.";
-    const blocks: Record<string, unknown>[] = [
-      { type: "paragraph", title: "핵심 뜻", body: lead },
-      {
-        type: "table",
-        title: "위도와 경도 비교",
-        rows: [
-          { label: "위도", value: "적도를 기준으로 북쪽·남쪽 위치를 나타냅니다." },
-          { label: "경도", value: "본초자오선을 기준으로 동쪽·서쪽 위치를 나타냅니다." },
-          { label: "지도에서 보기", value: "위도선은 가로 방향, 경도선은 세로 방향으로 생각하면 쉽습니다." },
-        ],
-      },
-      {
-        type: "diagram",
-        title: "위도와 경도 위치 보기",
-        diagramType: "grid",
-        nodes: [
-          { label: "경도", description: "동서 위치를 나타내는 값입니다." },
-          { label: "본초자오선", description: "경도 0도의 기준선입니다." },
-          { label: "위도와 차이", description: "위도는 남북 위치, 경도는 동서 위치를 나타냅니다." },
-        ],
-        links: [],
-      },
-      {
-        type: "check",
-        title: "확인하기",
-        items: ["경도는 동쪽·서쪽 위치를 나타낸다고 말할 수 있어요.", "본초자오선이 경도의 기준선이라는 점을 기억할 수 있어요.", "위도와 경도의 차이를 한 문장으로 설명할 수 있어요."],
-      },
-      {
-        type: "question",
-        title: "이어서 물어보기",
-        items: ["시차는 왜 생기나요?", "우리나라의 경도는 몇 도인가요?"],
-      },
-    ];
-    if (isDetailed) {
-      blocks.splice(3, 0, {
-        type: "example",
-        title: "수업 문장에 넣어 보기",
-        body: sourceSentence ? `문장 속 "${sourceSentence}"에서 경도는 위치를 더 정확히 나타내기 위해 쓰인 말이에요.` : `${context}에서 경도는 지구 위 장소의 위치를 더 정확히 말할 때 쓰입니다.`,
-      });
-    }
-    return makePayload(lead, blocks, "🧭");
-  }
-
-  if (topic.includes("위도")) {
-    const lead = "‘위도’는 적도를 기준으로 어떤 장소가 북쪽이나 남쪽으로 얼마나 떨어져 있는지 나타내는 값이에요.";
-    return makePayload(lead, [
-      { type: "paragraph", title: "핵심 뜻", body: lead },
-      {
-        type: "table",
-        title: "위도와 경도 비교",
-        rows: [
-          { label: "위도", value: "적도를 기준으로 북쪽·남쪽 위치를 나타냅니다." },
-          { label: "경도", value: "본초자오선을 기준으로 동쪽·서쪽 위치를 나타냅니다." },
-          { label: "지도에서 보기", value: "위도선은 가로 방향, 경도선은 세로 방향으로 생각하면 쉽습니다." },
-        ],
-      },
-      {
-        type: "diagram",
-        title: "위도와 경도 위치 보기",
-        diagramType: "grid",
-        nodes: [
-          { label: "위도", description: "남북 위치를 나타내는 값입니다." },
-          { label: "적도", description: "위도 0도의 기준선입니다." },
-          { label: "경도와 차이", description: "경도는 동서 위치를 나타냅니다." },
-        ],
-        links: [],
-      },
-      { type: "check", title: "확인하기", items: ["위도는 북쪽·남쪽 위치를 나타낸다고 말할 수 있어요.", "적도가 위도의 기준선이라는 점을 기억할 수 있어요.", "위도와 경도의 차이를 한 문장으로 설명할 수 있어요."] },
-      { type: "question", title: "이어서 물어보기", items: ["적도 근처는 왜 더운가요?", "우리나라의 위도는 몇 도인가요?"] },
-    ], "🌍");
-  }
-
-  if (topic.includes("증발")) {
-    const lead = "‘증발’은 물 같은 액체가 기체가 되어 공기 중으로 퍼지는 현상이에요.";
-    return makePayload(lead, [
-      { type: "paragraph", title: "핵심 뜻", body: lead },
-      {
-        type: "diagram",
-        title: "증발이 일어나는 흐름",
-        diagramType: "flow",
-        nodes: [
-          { label: "액체 물", description: "처음에는 눈에 보이는 물입니다.", role: "input" },
-          { label: "수증기", description: "기체 상태로 바뀝니다.", role: "process" },
-          { label: "공기 중", description: "주변 공기와 섞입니다.", role: "output" },
-        ],
-        links: [
-          { from: "액체 물", to: "수증기", label: "상태 변화" },
-          { from: "수증기", to: "공기 중", label: "퍼짐" },
-        ],
-      },
-      { type: "example", title: "생활 예시", body: "젖은 수건이 시간이 지나며 마르는 것은 물이 증발해서 공기 중으로 퍼지기 때문이에요." },
-      { type: "check", title: "확인하기", items: ["증발은 액체가 기체로 바뀌는 현상이라고 말할 수 있어요.", "물이 사라진 것이 아니라 모습이 바뀐 것이라고 설명할 수 있어요.", "젖은 수건이 마르는 까닭을 증발과 연결할 수 있어요."] },
-      { type: "question", title: "이어서 물어보기", items: ["끓음과 증발은 뭐가 다른가요?", "추운 날에도 빨래가 마르나요?"] },
-    ], "💧");
-  }
-
-  const lead = `‘${topic}’은 ${context}에서 중요한 뜻을 가진 말이에요. 앞뒤 문장이나 수업 장면과 함께 보면 무엇을 가리키는지 더 쉽게 알 수 있어요.`;
-  return makePayload(lead, [
-    { type: "paragraph", title: "핵심 뜻", body: lead },
-    { type: "example", title: "수업 문장에 넣어 보기", body: sourceSentence ? `문장 속 "${sourceSentence}"에서 ‘${topic}’이 무엇을 가리키는지 앞뒤 내용과 함께 살펴보면 좋아요.` : `${context}에서 ‘${topic}’이 어떤 뜻으로 쓰였는지 한 문장으로 바꾸어 생각해요.` },
-    { type: "check", title: "확인하기", items: [`‘${topic}’의 뜻을 한 문장으로 말할 수 있어요.`, `수업 문장 안에서 ‘${topic}’이 어떤 역할을 하는지 찾을 수 있어요.`, "비슷한 말과 헷갈리는 점을 하나 말할 수 있어요."] },
-    { type: "question", title: "이어서 물어보기", items: [`‘${topic}’${hasFinalConsonant(topic) ? "과" : "와"} 비슷한 말은 뭐가 있나요?`, `‘${topic}’${hasFinalConsonant(topic) ? "은" : "는"} 어디에서 볼 수 있나요?`] },
-  ], "📖");
-}
-
 function buildSafeConceptTitle(topic: string) {
   if (topic.includes("경도")) return "‘경도’는 동서 위치를 나타내는 값이에요";
   if (topic.includes("위도")) return "‘위도’는 남북 위치를 나타내는 값이에요";
@@ -392,15 +168,6 @@ function extractConceptTarget(question: string) {
       .replace(/\??$/, "")
       .trim() || trimmed || "궁금한 내용"
   );
-}
-
-function cleanConceptContext(notes: string) {
-  return notes
-    .trim()
-    .replace(/[.!?。]+$/, "")
-    .replace(/입니다$/, "")
-    .replace(/이에요$/, "")
-    .replace(/예요$/, "");
 }
 
 function defaultTextSchema() {
@@ -629,7 +396,9 @@ async function generateText(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_TEXT_MODEL || "gpt-5-mini",
+      model: serverEnv("OPENAI_TEXT_MODEL") || "gpt-5-mini",
+      store: false,
+      max_output_tokens: 6000,
       ...(isQuestionHelper || isConceptExplainer ? { reasoning: { effort: "low" } } : {}),
       input: [
         {
@@ -755,11 +524,14 @@ async function generateText(
     }),
   }, getTextTimeoutMs(appSlug));
 
-  if (!response.ok) return undefined;
+  if (!response.ok) throw new Error(`AI provider returned ${response.status}`);
   const data = await response.json();
   const text = extractResponseText(data);
   if (!text) return undefined;
   const parsed = JSON.parse(text);
+  if (!parsed || typeof parsed !== "object" || typeof parsed.title !== "string" || !parsed.title.trim()) throw new Error("Invalid structured result");
+  if (isConceptExplainer && (typeof parsed.lead !== "string" || !parsed.lead.trim() || !Array.isArray(parsed.answerBlocks) || !parsed.answerBlocks.length)) throw new Error("Empty concept result");
+  if (isQuestionHelper && (!Array.isArray(parsed.problems) || !parsed.problems.length || parsed.problems.some((problem: { prompt?: unknown; answer?: unknown }) => typeof problem?.prompt !== "string" || !problem.prompt.trim() || typeof problem.answer !== "string" || !problem.answer.trim()))) throw new Error("Empty worksheet result");
   return isConceptExplainer ? sanitizeConceptResult(parsed, values) : parsed;
 }
 
@@ -860,15 +632,15 @@ async function generateImage(
   values: Record<string, string>,
   referenceImage?: string,
 ) {
-  const prompt = buildImagePrompt(appSlug, appTitle, principle, values);
+  const prompt = buildImagePrompt(appSlug, appTitle, principle, values, Boolean(referenceImage));
 
   if (appSlug === "ai-invention-lab" && referenceImage) {
     const image = await imageReferenceToBlob(referenceImage);
 
     if (image) {
-      const edited = await generateImageFromReference(apiKey, prompt, image);
-      if (edited) return edited;
+      return generateImageFromReference(apiKey, prompt, image);
     }
+    throw new Error("Invalid image reference");
   }
 
   const response = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
@@ -878,23 +650,22 @@ async function generateImage(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: getImageModel(appSlug),
+      model: getImageModel(),
       prompt,
       size: appSlug === "poetry-picture-maker" ? "1024x1536" : "1024x1024",
-      quality: appSlug === "poetry-picture-maker" ? "high" : "medium",
+      quality: "medium",
       n: 1,
     }),
   }, appSlug === "poetry-picture-maker" ? AI_TIMEOUT_MS.longImage : AI_TIMEOUT_MS.image);
 
-  if (!response.ok) return undefined;
+  if (!response.ok) throw new Error(`AI provider returned ${response.status}`);
   const data = await response.json();
   const b64 = data.data?.[0]?.b64_json;
-  return b64 ? `data:image/png;base64,${b64}` : data.data?.[0]?.url;
+  return b64 ? `data:image/png;base64,${b64}` : undefined;
 }
 
-function getImageModel(appSlug: string) {
-  if (appSlug === "poetry-picture-maker") return "gpt-image-2";
-  return process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
+function getImageModel() {
+  return serverEnv("OPENAI_IMAGE_MODEL") || "gpt-image-2";
 }
 
 async function generateImageFromReference(
@@ -903,7 +674,7 @@ async function generateImageFromReference(
   reference: { blob: Blob; filename: string },
 ) {
   const form = new FormData();
-  form.append("model", process.env.OPENAI_IMAGE_MODEL || "gpt-image-2");
+  form.append("model", getImageModel());
   form.append("prompt", prompt);
   form.append("size", "1024x1024");
   form.append("quality", "medium");
@@ -918,48 +689,10 @@ async function generateImageFromReference(
     body: form,
   }, AI_TIMEOUT_MS.imageEdit);
 
-  if (!response.ok) return undefined;
+  if (!response.ok) throw new Error(`AI provider returned ${response.status}`);
   const data = await response.json();
   const b64 = data.data?.[0]?.b64_json;
-  return b64 ? `data:image/png;base64,${b64}` : data.data?.[0]?.url;
-}
-
-async function imageReferenceToBlob(referenceImage: string) {
-  if (referenceImage.startsWith("data:image/")) {
-    const match = referenceImage.match(/^data:([^;,]+);base64,(.+)$/);
-    if (!match) return undefined;
-    const bytes = Buffer.from(match[2], "base64");
-    return {
-      blob: new Blob([new Uint8Array(bytes)], { type: match[1] }),
-      filename: `student-sketch.${extensionFromMime(match[1])}`,
-    };
-  }
-
-  if (!referenceImage.startsWith("/")) return undefined;
-
-  const relativePath = normalize(referenceImage).replace(/^\/+/, "");
-  if (relativePath.startsWith("..")) return undefined;
-
-  const file = readFileSync(join(process.cwd(), "public", relativePath));
-  const mimeType = mimeFromPath(relativePath);
-
-  return {
-    blob: new Blob([new Uint8Array(file)], { type: mimeType }),
-    filename: `student-sketch${extname(relativePath) || ".png"}`,
-  };
-}
-
-function mimeFromPath(path: string) {
-  const extension = extname(path).toLowerCase();
-  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
-  if (extension === ".webp") return "image/webp";
-  return "image/png";
-}
-
-function extensionFromMime(mimeType: string) {
-  if (mimeType === "image/jpeg") return "jpg";
-  if (mimeType === "image/webp") return "webp";
-  return "png";
+  return b64 ? `data:image/png;base64,${b64}` : undefined;
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
@@ -981,18 +714,20 @@ function buildImagePrompt(
   appTitle: string,
   principle: string,
   values: Record<string, string>,
+  hasReference = false,
 ) {
   if (appSlug === "ai-invention-lab") {
     return [
       "Korean classroom invention project presentation visual.",
-      "Use the provided student hand-drawn sketch image as the main design reference; preserve its core structure and function while making it believable.",
-      "Create a polished product poster style image for a student-designed everyday invention.",
+      hasReference ? "Use the provided student hand-drawn sketch image as the main design reference; preserve its core structure and function while making it believable." : "Design the invention from its written description. No reference image is supplied.",
+      values.style === "classroom" ? "Create one realistic photograph of the invention in use in a Korean classroom." : values.style === "home" ? "Create one realistic photograph of the invention in use at home." : "Create one polished student invention poster with clear, legible Korean text.",
       `Invention name: ${values.topic || appTitle}.`,
       `Problem to solve: ${values.notes || "daily inconvenience"}.`,
       `Primary user: ${values.user || "student user"}.`,
       `Core feature: ${values.feature || "simple helpful automatic function"}.`,
       "Show the product clearly as a believable household object, with a second implied real-use scene in the composition.",
-      "No readable text, no labels, no UI, no watermark. Product-focused, bright classroom maker-project photography, realistic materials, clean background.",
+      values.style === "poster" || !values.style ? `Render only these exact Korean texts directly inside the image: title "${values.topic || appTitle}"; feature "${values.feature || ""}". Do not add other text.` : "No readable text or labels.",
+      "One image only, no separate views or collage. No UI, no watermark. Clear materials, clean composition.",
     ].join(" ");
   }
 
@@ -1001,7 +736,8 @@ function buildImagePrompt(
       "Korean classroom picturebook creation activity.",
       `Exact story sentence: ${values.topic || appTitle}.`,
       `Scene description: ${values.notes || ""}.`,
-      "Create one charming picturebook scene where Korean onomatopoeia can behave like part of the water splash.",
+      `Render the exact story sentence "${values.topic || appTitle}" directly in the image with legible Korean storybook typography. Do not add other readable text unless explicitly requested in the scene description.`,
+      `Visual style: ${values.style || "warm hand-drawn picturebook illustration"}.` ,
       "Use only storybook-friendly visual treatment, no watermark, child-friendly illustration, clear subject and setting.",
     ].join(" ");
   }
@@ -1021,6 +757,7 @@ function buildImagePrompt(
       "Exact poem text:",
       poem,
       `Scene direction: ${scene}`,
+      `Illustration style: ${values.style || "watercolor"}`,
       "Poster direction: portrait 2:3 poetry artwork, polished classroom literary poster, warm readable Korean typography, clear hierarchy, integrated illustration and text, print-ready composition.",
     ].join(" ");
   }
